@@ -1,0 +1,149 @@
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User accounts with profile information, download and bookmark tracking
+model User {
+    userId          String   @id @default(uuid())  // Unique user identifier
+    firstName       String                         // User's first name
+    lastName        String                         // User's last name
+    username        String   @unique               // Username, must be unique
+    email           String   @unique               // Email, must be unique
+    password        String                         // Hashed password for security
+    profilePicture  String?                        // Optional profile picture URL
+    bio             String?                        // Optional user bio
+    downloadCount   Int      @default(0)           // Total downloads across all projects by user
+    bookmarkCount   Int      @default(0)           // Total bookmarks on this user's projects
+    createdAt       DateTime @default(now())       // Account creation date
+    updatedAt       DateTime @updatedAt            // Last update timestamp
+    
+    // Relationships
+    projects        Project[]                       // Projects created by user
+    bookmarks       Bookmark[]                      // Projects bookmarked by user
+    likes           Like[]                          // Likes given by user
+    comments        Comment[]                       // Comments made by user
+    collaborations  Collaboration[]                 // Projects user collaborates on
+}
+
+// Represents a piece of pixel art or animation
+model Project {
+    projectId       String    @id @default(uuid())  // Unique project identifier
+    userId          String                          // ID of the user who created the project
+    title           String                          // Project title
+    description     String?                         // Optional project description
+    isPublic        Boolean   @default(true)        // Visibility setting, default is public
+    downloadCount   Int       @default(0)           // Total downloads of this project
+    bookmarkCount   Int       @default(0)           // Total bookmarks of this project
+    isLicensed      Boolean   @default(false)       // Phase 2: Indicates if project requires license for high-res download
+    watermarkStatus Boolean   @default(true)        // Phase 1: Controls watermark on downloads
+    resolution      String    @default("low")       // Phase 1: Default resolution for public downloads
+    createdAt       DateTime  @default(now())       // Project creation date
+    updatedAt       DateTime  @updatedAt            // Last update timestamp
+    
+    // Relationships
+    user            User      @relation(fields: [userId], references: [userId])  // Link to creator user
+    likes           Like[]                           // Likes received on this project
+    comments        Comment[]                        // Comments on this project
+    canvasData      CanvasData[]                     // Frame data for animations
+    versions        Version[]                        // Project version history
+    animation       AnimationSetting?                // Animation settings, if applicable
+    collaborations  Collaboration[]                  // List of collaborators on the project
+    bookmarks       Bookmark[]                       // Users who bookmarked this project
+}
+
+// Stores pixel data for each frame in a project animation
+model CanvasData {
+    canvasId       String    @id @default(uuid())    // Unique identifier for canvas frame
+    projectId      String                            // Project associated with this frame
+    frameNumber    Int                               // Frame order in animation
+    width          Int                               // Canvas width in pixels
+    height         Int                               // Canvas height in pixels
+    pixels         Json                              // JSON storing pixel colors and positions
+    createdAt      DateTime  @default(now())         // Creation date for this frame
+    updatedAt      DateTime  @updatedAt              // Last update timestamp
+
+    // Relationship
+    project        Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+}
+
+// Settings for project animations, such as frame rate and loop options
+model AnimationSetting {
+    animationId    String    @id @default(uuid())    // Unique identifier for animation settings
+    projectId      String    @unique                 // Project associated with these settings
+    frameRate      Int       @default(12)            // Frames per second for playback
+    loop           Boolean   @default(true)          // Should animation loop by default?
+    exportFormat   String                            // Preferred format for export (e.g., GIF, MP4)
+
+    // Relationship
+    project        Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+}
+
+// Stores past versions of a project for undo/redo functionality
+model Version {
+    versionId      String    @id @default(uuid())    // Unique identifier for version entry
+    projectId      String                            // Project associated with this version
+    timestamp      DateTime  @default(now())         // When this version was created
+    pixels         Json                              // JSON snapshot of the canvas state at this version
+
+    // Relationship
+    project        Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+}
+
+
+// Tracks collaboration on projects with roles and permissions
+model Collaboration {
+    collaborationId String    @id @default(uuid())    // Unique identifier for collaboration entry
+    projectId       String                            // Project associated with this collaboration
+    userId          String                            // Collaborator user ID
+    role            String    @default("viewer")      // Role of collaborator (e.g., owner, editor)
+    permissions     Json?                             // Custom permissions for collaborator
+
+    // Relationships
+    project         Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+    user            User      @relation(fields: [userId], references: [userId])        // Link to user
+}
+
+// Allows users to like projects
+model Like {
+    likeId         String    @id @default(uuid())    // Unique identifier for like entry
+    userId         String                            // User who liked the project
+    projectId      String                            // Project that received the like
+    createdAt      DateTime  @default(now())         // Date the like was created
+
+    // Relationships
+    user           User      @relation(fields: [userId], references: [userId])         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+}
+
+// Allows users to leave comments on projects
+model Comment {
+    commentId      String    @id @default(uuid())    // Unique identifier for comment
+    userId         String                            // User who commented
+    projectId      String                            // Project that received the comment
+    content        String                            // Comment text
+    createdAt      DateTime  @default(now())         // Date comment was created
+
+    // Relationships
+    user           User      @relation(fields: [userId], references: [userId])         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+}
+
+// Allows users to bookmark projects they like, similar to a "save" feature
+model Bookmark {
+    bookmarkId     String    @id @default(uuid())    // Unique identifier for bookmark entry
+    userId         String                            // User who bookmarked the project
+    projectId      String                            // Project that was bookmarked
+    createdAt      DateTime  @default(now())         // Date bookmark was created
+
+    // Relationships
+    user           User      @relation(fields: [userId], references: [userId])         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+}
