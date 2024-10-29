@@ -4,6 +4,15 @@ const PORT = process.env.PORT || 12000;
 const apiRoutes = require("./API/index");
 const cors = require("cors");
 
+//data caching
+// const redis = require("redis");
+// const redisClient = redis.createClient({ url: "redis://127.0.0.1:6379" });
+
+// redisClient.on("error", (err) => console.log("Redis Client Error", err));
+// redisClient.connect();
+
+// module.exports = redisClient;
+
 //middleware
 app.use(express.json());
 app.use(require("morgan")("dev"));

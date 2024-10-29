@@ -22,6 +22,8 @@ model User {
     bio             String?                        // Optional user bio
     downloadCount   Int      @default(0)           // Total downloads across all projects by user
     bookmarkCount   Int      @default(0)           // Total bookmarks on this user's projects
+    role            UserRole @default(USER)        // User role (enum: User || Admin)
+    refreshToken    String?                        //field to store refresh token
     createdAt       DateTime @default(now())       // Account creation date
     updatedAt       DateTime @updatedAt            // Last update timestamp
     
@@ -57,6 +59,25 @@ model Project {
     animation       AnimationSetting?                // Animation settings, if applicable
     collaborations  Collaboration[]                  // List of collaborators on the project
     bookmarks       Bookmark[]                       // Users who bookmarked this project
+    templateLayers  TemplateLayer[]                  // Template layers associated with this project
+}
+
+// Template layer system for project tracing guides
+model TemplateLayer {
+    templateLayerId String    @id @default(uuid())  // Unique identifier for template layer
+    projectId       String                           // Project associated with this template layer
+    imageUrl        String                           // URL of the template image
+    opacity         Float     @default(0.5)          // Opacity of the template (0-1 range)
+    isLocked        Boolean   @default(false)        // Layer locking status
+    positionX       Int       @default(0)            // Horizontal position on the canvas
+    positionY       Int       @default(0)            // Vertical position on the canvas
+    scale           Float     @default(1.0)          // Scale factor for the template image
+    flipHorizontal  Boolean   @default(false)        // Horizontal flip status
+    flipVertical    Boolean   @default(false)        // Vertical flip status
+    rotation        Int       @default(0)            // Rotation angle in degrees
+
+    // Relationship
+    project         Project   @relation(fields: [projectId], references: [projectId])  // Link to project
 }
 
 // Stores pixel data for each frame in a project animation
@@ -103,7 +124,7 @@ model Collaboration {
     collaborationId String    @id @default(uuid())    // Unique identifier for collaboration entry
     projectId       String                            // Project associated with this collaboration
     userId          String                            // Collaborator user ID
-    role            String    @default("viewer")      // Role of collaborator (e.g., owner, editor)
+    role            CollaborationRole @default(VIEWER)// Role of collaborator (enum: Owner, Editor, Viewer)
     permissions     Json?                             // Custom permissions for collaborator
 
     // Relationships
@@ -146,4 +167,16 @@ model Bookmark {
     // Relationships
     user           User      @relation(fields: [userId], references: [userId])         // Link to user
     project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+}
+
+// Enum for user roles
+enum UserRole {
+    USER
+    ADMIN
+}
+
+enum CollaborationRole {
+    OWNER
+    EDITOR
+    VIEWER
 }
