@@ -5,7 +5,7 @@ const prisma = require("../prisma");
 // const cache = require("../middleware/cache");
 // const redisClient = require("../server");
 
-//get all projects and cache it
+//get all projects
 router.get(
   "/",
   /*cache,*/ async (req, res) => {

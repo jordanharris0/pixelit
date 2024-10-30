@@ -51,7 +51,7 @@ model Project {
     updatedAt       DateTime  @updatedAt            // Last update timestamp
     
     // Relationships
-    user            User      @relation(fields: [userId], references: [userId])  // Link to creator user
+    user            User      @relation(fields: [userId], references: [userId], onDelete: Cascade)  // Link to creator user
     likes           Like[]                           // Likes received on this project
     comments        Comment[]                        // Comments on this project
     canvasData      CanvasData[]                     // Frame data for animations
@@ -77,7 +77,7 @@ model TemplateLayer {
     rotation        Int       @default(0)            // Rotation angle in degrees
 
     // Relationship
-    project         Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+    project         Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
 }
 
 // Stores pixel data for each frame in a project animation
@@ -92,7 +92,7 @@ model CanvasData {
     updatedAt      DateTime  @updatedAt              // Last update timestamp
 
     // Relationship
-    project        Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
 }
 
 // Settings for project animations, such as frame rate and loop options
@@ -104,7 +104,7 @@ model AnimationSetting {
     exportFormat   String                            // Preferred format for export (e.g., GIF, MP4)
 
     // Relationship
-    project        Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
 }
 
 // Stores past versions of a project for undo/redo functionality
@@ -115,7 +115,7 @@ model Version {
     pixels         Json                              // JSON snapshot of the canvas state at this version
 
     // Relationship
-    project        Project   @relation(fields: [projectId], references: [projectId])  // Link to project
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
 }
 
 
@@ -128,8 +128,8 @@ model Collaboration {
     permissions     Json?                             // Custom permissions for collaborator
 
     // Relationships
-    project         Project   @relation(fields: [projectId], references: [projectId])  // Link to project
-    user            User      @relation(fields: [userId], references: [userId])        // Link to user
+    project         Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+    user            User      @relation(fields: [userId], references: [userId], onDelete: Cascade)        // Link to user
 }
 
 // Allows users to like projects
@@ -140,8 +140,8 @@ model Like {
     createdAt      DateTime  @default(now())         // Date the like was created
 
     // Relationships
-    user           User      @relation(fields: [userId], references: [userId])         // Link to user
-    project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+    user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
 }
 
 // Allows users to leave comments on projects
@@ -153,8 +153,8 @@ model Comment {
     createdAt      DateTime  @default(now())         // Date comment was created
 
     // Relationships
-    user           User      @relation(fields: [userId], references: [userId])         // Link to user
-    project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+    user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
 }
 
 // Allows users to bookmark projects they like, similar to a "save" feature
@@ -165,8 +165,8 @@ model Bookmark {
     createdAt      DateTime  @default(now())         // Date bookmark was created
 
     // Relationships
-    user           User      @relation(fields: [userId], references: [userId])         // Link to user
-    project        Project   @relation(fields: [projectId], references: [projectId])    // Link to project
+    user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
 }
 
 // Enum for user roles
