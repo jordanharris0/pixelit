@@ -33,6 +33,7 @@ model User {
     likes           Like[]                          // Likes given by user
     comments        Comment[]                       // Comments made by user
     collaborations  Collaboration[]                 // Projects user collaborates on
+    downloads Download[]                            // Track each download by this user
 }
 
 // Represents a piece of pixel art or animation
@@ -41,6 +42,7 @@ model Project {
     userId          String                          // ID of the user who created the project
     title           String                          // Project title
     description     String?                         // Optional project description
+    tags            String[]                        // Array of tags for keywords
     isPublic        Boolean   @default(true)        // Visibility setting, default is public
     downloadCount   Int       @default(0)           // Total downloads of this project
     bookmarkCount   Int       @default(0)           // Total bookmarks of this project
@@ -60,6 +62,7 @@ model Project {
     collaborations  Collaboration[]                  // List of collaborators on the project
     bookmarks       Bookmark[]                       // Users who bookmarked this project
     templateLayers  TemplateLayer[]                  // Template layers associated with this project
+    downloads       Download[]                       // Log each download event for this project
 }
 
 // Template layer system for project tracing guides
@@ -130,6 +133,17 @@ model Collaboration {
     // Relationships
     project         Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
     user            User      @relation(fields: [userId], references: [userId], onDelete: Cascade)        // Link to user
+}
+
+model Download {
+  downloadId     String   @id @default(uuid())        // Unique identifier for each download event
+  userId         String                                 // ID of the user who downloaded
+  projectId      String                                 // ID of the downloaded project
+  downloadedAt   DateTime @default(now())               // Timestamp of download event
+
+  // Relationships
+  user           User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  project        Project  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
 }
 
 // Allows users to like projects

@@ -14,7 +14,7 @@ const rateLimit = require("express-rate-limit");
 //login limiter
 const loginLimiter = rateLimit({
   windowsMs: 15 * 60 * 1000, //15 minutes
-  max: 5, //li,it on login attempts
+  max: 5, //limit on login attempts
   message: "Too many login attempts, please try again in 15 minutes.",
 });
 
@@ -1000,3 +1000,45 @@ router.delete(
   }
 );
 //<-------------------- ^^^^^^ -------------------->
+
+//<---------- Handles Download Activity Routes ---------->
+
+//track download activity for a project
+router.post(
+  "/projects/:projectId/download",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ message: "Project not found." });
+      }
+
+      //increment download count
+      await prisma.project.update({
+        where: { projectId },
+        data: { downloadCount: { increment: 1 } },
+      });
+
+      //log download event in the Download table
+      const download = await prisma.download.create({
+        data: { userId, projectId },
+      });
+
+      res.status(200).json({
+        message: "Download tracked successfully.",
+        downloadCount: project.downloadCount + 1, //incremented count for response
+        download,
+      });
+    } catch (error) {
+      console.error("Error tracking download:", error.message);
+      next(error);
+    }
+  }
+);
