@@ -4,6 +4,14 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
 
+//is admin function
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === "ADMIN") {
+    return next();
+  }
+  return res.status(403).json({ message: "Access denied. Admins only." });
+};
+
 //Logged in user function
 const isLoggedIn = async (req, res, next) => {
   try {
@@ -136,8 +144,26 @@ const authenticate = async (req, res, next) => {
   }
 };
 
+//helper function to create notification
+async function createNotification(userId, projectId, type, message) {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId,
+        projectId,
+        type,
+        message,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating notification:", error.message);
+  }
+}
+
 module.exports = {
   createUser,
   authenticate,
   isLoggedIn,
+  isAdmin,
+  createNotification,
 };

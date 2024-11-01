@@ -33,7 +33,9 @@ model User {
     likes           Like[]                          // Likes given by user
     comments        Comment[]                       // Comments made by user
     collaborations  Collaboration[]                 // Projects user collaborates on
-    downloads Download[]                            // Track each download by this user
+    downloads       Download[]                      // Track each download by this user
+    reports         Report[]                        // Reports for NSFW content
+    notifications   Notification[]                  // User interaction notifications
 }
 
 // Represents a piece of pixel art or animation
@@ -45,6 +47,7 @@ model Project {
     tags            String[]                        // Array of tags for keywords
     isPublic        Boolean   @default(true)        // Visibility setting, default is public
     downloadCount   Int       @default(0)           // Total downloads of this project
+    fileUrl         String?                         // URL to the file in external storage
     bookmarkCount   Int       @default(0)           // Total bookmarks of this project
     isLicensed      Boolean   @default(false)       // Phase 2: Indicates if project requires license for high-res download
     watermarkStatus Boolean   @default(true)        // Phase 1: Controls watermark on downloads
@@ -63,6 +66,8 @@ model Project {
     bookmarks       Bookmark[]                       // Users who bookmarked this project
     templateLayers  TemplateLayer[]                  // Template layers associated with this project
     downloads       Download[]                       // Log each download event for this project
+    reports         Report[]                         // Reports for NSFW content
+    notifications   Notification[]                   // User interaction notifications
 }
 
 // Template layer system for project tracing guides
@@ -169,6 +174,7 @@ model Comment {
     // Relationships
     user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+    reports        Report[]                          // Reported Comments
 }
 
 // Allows users to bookmark projects they like, similar to a "save" feature
@@ -181,6 +187,34 @@ model Bookmark {
     // Relationships
     user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+}
+
+// Allows user to be notified when someone interacts with their project
+model Notification {
+  notificationId String   @id @default(uuid())
+  userId         String                                // User to be notified
+  projectId      String?                               // Project associated with the notification, if applicable
+  type           String                                // Type of notification (e.g., "LIKE", "COMMENT", "DOWNLOAD")
+  message        String                                // Notification message
+  isRead         Boolean   @default(false)             // Read status of the notification
+  createdAt      DateTime  @default(now())             // Timestamp of notification creation
+
+  user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  project        Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+}
+
+// Allows user to report inappropriate or problematic projects
+model Report {
+  reportId    String   @id @default(uuid())
+  userId      String                                 // The user who reported the content
+  projectId   String                                 // The reported project
+  commentId   String                                 // The reported comment
+  reason      String                                 // Reason for reporting
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  comment     Comment?  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
 }
 
 // Enum for user roles

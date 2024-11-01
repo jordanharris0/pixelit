@@ -4,6 +4,7 @@ const {
   createUser,
   authenticate,
   isLoggedIn,
+  createNotification,
 } = require("../controllers/authController");
 // const cache = require("../middleware/cache");
 
@@ -1003,7 +1004,7 @@ router.delete(
 
 //<---------- Handles Download Activity Routes ---------->
 
-//track download activity for a project
+//download and track download activity for a project
 router.post(
   "/projects/:projectId/download",
   isLoggedIn,
@@ -1014,30 +1015,254 @@ router.post(
     try {
       const project = await prisma.project.findUnique({
         where: { projectId },
+        select: {
+          userId: true,
+          isPublic: true,
+          fileUrl: true, //file URL for the project
+          downloadCount: true,
+        },
       });
 
       if (!project) {
         return res.status(404).json({ message: "Project not found." });
       }
 
-      //increment download count
-      await prisma.project.update({
+      //authorization: check if the project is public or owned by the requesting user
+      if (!project.isPublic && project.userId !== userId) {
+        return res.status(403).json({
+          message: "You are not authorized to download this project.",
+        });
+      }
+
+      // Increment download count
+      const updatedProject = await prisma.project.update({
         where: { projectId },
         data: { downloadCount: { increment: 1 } },
       });
 
-      //log download event in the Download table
+      // Log download event in the Download table
       const download = await prisma.download.create({
         data: { userId, projectId },
       });
 
       res.status(200).json({
         message: "Download tracked successfully.",
-        downloadCount: project.downloadCount + 1, //incremented count for response
+        downloadCount: updatedProject.downloadCount,
+        fileUrl: project.fileUrl, //add file URL to response for download initiation
         download,
       });
     } catch (error) {
       console.error("Error tracking download:", error.message);
+      next(error);
+    }
+  }
+);
+
+//user download history
+router.get("/users/:userId/downloads", isLoggedIn, async (req, res, next) => {
+  const { userId } = req.params;
+
+  try {
+    const downloadHistory = await prisma.download.findMany({
+      where: { userId },
+      include: {
+        project: {
+          select: {
+            projectId: true,
+            title: true,
+            description: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { downloadedAt: "desc" },
+    });
+
+    res.json(downloadHistory);
+  } catch (error) {
+    console.error("Error fetching download history:", error.message);
+    next(error);
+  }
+});
+
+//<-------------------- ^^^^^^ -------------------->
+
+//<---------- Handles User Activity Routes ---------->
+router.get("/users/:userId/activity", isLoggedIn, async (req, res, next) => {
+  const { userId } = req.params;
+
+  try {
+    const likes = await prisma.like.findMany({
+      where: { userId },
+      include: {
+        project: { select: { title: true, projectId: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    const comments = await prisma.comment.findMany({
+      where: { userId },
+      include: {
+        project: { select: { title: true, projectId: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    const downloads = await prisma.download.findMany({
+      where: { userId },
+      include: {
+        project: { select: { title: true, projectId: true } },
+      },
+      orderBy: { downloadedAt: "desc" },
+      take: 10,
+    });
+
+    res.json({ likes, comments, downloads });
+  } catch (error) {
+    console.error("Error fetching user activity:", error.message);
+    next(error);
+  }
+});
+
+//get popularity metrics of a project
+router.get("/projects/:projectId/metrics", async (req, res, next) => {
+  const { projectId } = req.params;
+
+  try {
+    const metrics = await prisma.project.findUnique({
+      where: { projectId },
+      select: {
+        downloadCount: true,
+        bookmarkCount: true,
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+      },
+    });
+
+    if (!metrics) {
+      return res.status(404).json({ message: "Project not found." });
+    }
+
+    res.json(metrics);
+  } catch (error) {
+    console.error("Error fetching project metrics:", error.message);
+    next(error);
+  }
+});
+//<-------------------- ^^^^^^ -------------------->
+
+//<---------- Handles User Content Reports ---------->
+
+//report a project
+router.post("/reports", isLoggedIn, async (req, res, next) => {
+  const { projectId, reason } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    //check if the project exists
+    const project = await prisma.project.findUnique({
+      where: { projectId },
+    });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found." });
+    }
+
+    //create a report entry
+    const report = await prisma.report.create({
+      data: { userId, projectId, reason },
+    });
+
+    res.status(201).json({ message: "Report submitted successfully.", report });
+  } catch (error) {
+    console.error("Error reporting project:", error.message);
+    next(error);
+  }
+});
+
+//report a comment
+router.post("/comments/report", isLoggedIn, async (req, res, next) => {
+  const { commentId, reason } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { commentId },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found." });
+    }
+
+    const report = await prisma.report.create({
+      data: { userId, commentId, reason },
+    });
+
+    res
+      .status(201)
+      .json({ message: "Comment report submitted successfully.", report });
+  } catch (error) {
+    console.error("Error reporting comment:", error.message);
+    next(error);
+  }
+});
+//<-------------------- ^^^^^^ -------------------->
+
+//<---------- Handles Notification Routes ---------->
+
+//get all notifications
+router.get("/notifications", isLoggedIn, async (req, res, next) => {
+  const userId = req.user.userId;
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        notificationId: true,
+        type: true,
+        message: true,
+        isRead: true,
+        createdAt: true,
+        project: {
+          select: {
+            projectId: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching notifications:", error.message);
+    next(error);
+  }
+});
+
+//mark a notification as read
+router.patch(
+  "/notifications/:notificationId",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { notificationId } = req.params;
+
+    try {
+      const notification = await prisma.notification.update({
+        where: { notificationId },
+        data: { isRead: true },
+      });
+
+      res
+        .status(200)
+        .json({ message: "Notification marked as read.", notification });
+    } catch (error) {
+      console.error("Error marking notification as read:", error.message);
       next(error);
     }
   }
