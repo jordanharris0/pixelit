@@ -2,6 +2,7 @@ const router = require("express").Router();
 module.exports = router;
 
 const prisma = require("../prisma");
+const { isLoggedIn } = require("../controllers/authController");
 
 //search or filter projects
 router.get("/projects/search", async (req, res, next) => {
@@ -85,6 +86,59 @@ router.get("/projects/trending", async (req, res, next) => {
     res.json(trendingProjects);
   } catch (error) {
     console.error("Error retrieving trending projects:", error.message);
+    next(error);
+  }
+});
+
+//search anf filter user profiles
+router.get("/users/search", async (req, res, next) => {
+  const { query, tags } = req.query;
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          query ? { username: { contains: query, mode: "insensitive" } } : {},
+          tags ? { tags: { hasSome: tags.split(",") } } : {},
+        ],
+      },
+      select: {
+        userId: true,
+        username: true,
+        bio: true,
+        profilePicture: true,
+      },
+    });
+    res.json(users);
+  } catch (error) {
+    console.error("error searching for user profiles: ", error.message);
+    next(error);
+  }
+});
+
+//get recommended projects based off user activity
+router.get("/projects/recommended", isLoggedIn, async (req, res, next) => {
+  const userId = req.user.userId;
+
+  try {
+    const userLikesTags = await prisma.like.findMany({
+      where: { userId },
+      select: { project: { select: { tags: true } } },
+    });
+
+    const tags = userLikesTags.flatMap((like) => like.project.tags);
+    const recommendedProjects = await prisma.project.findMany({
+      where: {
+        tags: { hasSome: tags },
+        isPublic: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    res.json(recommendedProjects);
+  } catch (error) {
+    console.error("Error fetching recommended projects: ", error.message);
     next(error);
   }
 });

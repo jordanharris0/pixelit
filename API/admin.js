@@ -99,3 +99,17 @@ router.delete(
     }
   }
 );
+
+//Activity log for admin
+router.get("/activity-log", isLoggedIn, isAdmin, async (req, res, next) => {
+  try {
+    const activityLog = await prisma.activityLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50, //limit of results
+    });
+    res.json(activityLog);
+  } catch (error) {
+    console.error("Error retrieving activity log: ", error.message);
+    next(error);
+  }
+});

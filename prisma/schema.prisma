@@ -36,6 +36,7 @@ model User {
     downloads       Download[]                      // Track each download by this user
     reports         Report[]                        // Reports for NSFW content
     notifications   Notification[]                  // User interaction notifications
+    activityLog     ActivityLog[]                   //Activity log entries
 }
 
 // Represents a piece of pixel art or animation
@@ -215,6 +216,17 @@ model Report {
   user        User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
   project     Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
   comment     Comment?  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
+}
+
+// Allows admin to monitor user activity
+model ActivityLog {
+  activityLogId String   @id @default(uuid())
+  userId        String?                               // User who performed the action, optional if system action
+  actionType    String                                // Type of action (e.g., "DELETE_PROJECT", "UPDATE_ROLE")
+  description   String                                // Description of the action
+  timestamp     DateTime @default(now())              // When the action occurred
+
+  user          User?    @relation(fields: [userId], references: [userId], onDelete: SetNull)
 }
 
 // Enum for user roles
