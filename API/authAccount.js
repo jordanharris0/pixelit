@@ -11,6 +11,8 @@ const {
 const prisma = require("../prisma");
 const bcrypt = require("bcrypt");
 const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET;
 
 //login limiter
 const loginLimiter = rateLimit({
@@ -21,13 +23,13 @@ const loginLimiter = rateLimit({
 
 //<---------- v handles register, login, token refresh, logout v ---------->
 
-//create new user - see authController.js
+//create new user - see authController.js -- WORKS
 router.post("/register", createUser);
 
-//authenticate login - see authController.js
+//authenticate login - see authController.js -- WORKS
 router.post("/login", loginLimiter, authenticate);
 
-//refresh user token
+//refresh user token -- WORKS
 router.post("/refresh-token", async (req, res) => {
   const { refreshToken } = req.body;
 
@@ -43,6 +45,10 @@ router.post("/refresh-token", async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { userId: payload.userId },
     });
+
+    //testing
+    console.log("User record:", user);
+    console.log("User's stored refresh token:", user?.refreshToken);
 
     if (!user || user.refreshToken !== refreshToken) {
       return res.status(403).json({ message: "Invalid refresh token" });
@@ -63,7 +69,7 @@ router.post("/refresh-token", async (req, res) => {
   }
 });
 
-//clear refresh token on logout
+//clear refresh token on logout -- WORKS
 router.post("/logout", isLoggedIn, async (req, res) => {
   await prisma.user.update({
     where: { userId: req.user.userId },
@@ -76,7 +82,7 @@ router.post("/logout", isLoggedIn, async (req, res) => {
 
 //<---------- v handles account related routes v ---------->
 
-//get auth users account
+//get auth users account -- WORKS
 router.get("/account", isLoggedIn, async (req, res, next) => {
   const user = await prisma.user.findUnique({
     where: { userId: req.user.userId },
@@ -84,7 +90,7 @@ router.get("/account", isLoggedIn, async (req, res, next) => {
   res.json(user);
 });
 
-//updater account info
+//updater account info -- WORKS
 router.patch("/account", isLoggedIn, async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -163,7 +169,7 @@ router.patch("/account", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//delete account
+//delete account -- WORKS
 router.delete("/account", isLoggedIn, async (req, res) => {
   try {
     await prisma.user.delete({
@@ -176,7 +182,7 @@ router.delete("/account", isLoggedIn, async (req, res) => {
   }
 });
 
-//update account password
+//update account password -- WORKS
 router.patch("/account/password", isLoggedIn, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
@@ -217,7 +223,7 @@ router.patch("/account/password", isLoggedIn, async (req, res) => {
   }
 });
 
-//update user settings
+//update user settings -- WORKS
 router.patch("/settings", isLoggedIn, async (req, res, next) => {
   const userId = req.user.userId;
   const { notificationsEnabled } = req.body;
@@ -234,7 +240,7 @@ router.patch("/settings", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//update privacy settings
+//update privacy settings -- WORKS
 router.patch("/privacy", isLoggedIn, async (req, res, next) => {
   const userId = req.user.userId;
   const { showBookmarks, showDownloadHistory } = req.body;
@@ -251,7 +257,7 @@ router.patch("/privacy", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//user analytics
+//user analytics -- WORKS
 router.get("/:userId/analytics", isLoggedIn, async (req, res, next) => {
   const { userId } = req.params;
 
@@ -280,7 +286,7 @@ router.get("/:userId/analytics", isLoggedIn, async (req, res, next) => {
 
 //<---------- Handles User Activity Routes ---------->
 
-//get users recent activity
+//get users recent activity -- WORKS
 router.get("/users/:userId/activity", isLoggedIn, async (req, res, next) => {
   const { userId } = req.params;
 
@@ -319,7 +325,7 @@ router.get("/users/:userId/activity", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//get popularity metrics of a project
+//get popularity metrics of a project  -- Need Project to test
 router.get("/projects/:projectId/metrics", async (req, res, next) => {
   const { projectId } = req.params;
 
@@ -352,7 +358,7 @@ router.get("/projects/:projectId/metrics", async (req, res, next) => {
 
 //<---------- Handles User Content Reports ---------->
 
-//report a project
+//report a project -- Need Project to test
 router.post("/reports", isLoggedIn, async (req, res, next) => {
   const { projectId, reason } = req.body;
   const userId = req.user.userId;
@@ -378,7 +384,7 @@ router.post("/reports", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//report a comment
+//report a comment -- Need Comment to test
 router.post("/comments/report", isLoggedIn, async (req, res, next) => {
   const { commentId, reason } = req.body;
   const userId = req.user.userId;

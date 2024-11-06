@@ -12,31 +12,34 @@ datasource db {
 
 // User accounts with profile information, download and bookmark tracking
 model User {
-    userId          String   @id @default(uuid())  // Unique user identifier
-    firstName       String                         // User's first name
-    lastName        String                         // User's last name
-    username        String   @unique               // Username, must be unique
-    email           String   @unique               // Email, must be unique
-    password        String                         // Hashed password for security
-    profilePicture  String?                        // Optional profile picture URL
-    bio             String?                        // Optional user bio
-    downloadCount   Int      @default(0)           // Total downloads across all projects by user
-    bookmarkCount   Int      @default(0)           // Total bookmarks on this user's projects
-    role            UserRole @default(USER)        // User role (enum: User || Admin)
-    refreshToken    String?                        //field to store refresh token
-    createdAt       DateTime @default(now())       // Account creation date
-    updatedAt       DateTime @updatedAt            // Last update timestamp
+    userId                String   @id @default(uuid())  // Unique user identifier
+    firstName             String                         // User's first name
+    lastName              String                         // User's last name
+    username              String   @unique               // Username, must be unique
+    email                 String   @unique               // Email, must be unique
+    password              String                         // Hashed password for security
+    profilePicture        String?                        // Optional profile picture URL
+    bio                   String?                        // Optional user bio
+    downloadCount         Int      @default(0)           // Total downloads across all projects by user
+    bookmarkCount         Int      @default(0)           // Total bookmarks on this user's projects
+    role                  UserRole @default(USER)        // User role (enum: User || Admin)
+    refreshToken          String?                        //field to store refresh token
+    showBookmarks         Boolean  @default(true)        // Controls visibility of bookmarks
+    showDownloadHistory   Boolean @default(true)         // Controls visibility of download history
+    notificationsEnabled  Boolean  @default(true)        // Controls notification settings
+    createdAt             DateTime @default(now())       // Account creation date
+    updatedAt             DateTime @updatedAt            // Last update timestamp
     
     // Relationships
-    projects        Project[]                       // Projects created by user
-    bookmarks       Bookmark[]                      // Projects bookmarked by user
-    likes           Like[]                          // Likes given by user
-    comments        Comment[]                       // Comments made by user
-    collaborations  Collaboration[]                 // Projects user collaborates on
-    downloads       Download[]                      // Track each download by this user
-    reports         Report[]                        // Reports for NSFW content
-    notifications   Notification[]                  // User interaction notifications
-    activityLog     ActivityLog[]                   //Activity log entries
+    projects              Project[]                       // Projects created by user
+    bookmarks             Bookmark[]                      // Projects bookmarked by user
+    likes                 Like[]                          // Likes given by user
+    comments              Comment[]                       // Comments made by user
+    collaborations        Collaboration[]                 // Projects user collaborates on
+    downloads             Download[]                      // Track each download by this user
+    reports               Report[]                        // Reports for NSFW content
+    notifications         Notification[]                  // User interaction notifications
+    activityLog           ActivityLog[]                   //Activity log entries
 }
 
 // Represents a piece of pixel art or animation
