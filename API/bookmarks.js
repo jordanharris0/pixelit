@@ -40,6 +40,15 @@ router.post(
         const bookmark = await prisma.bookmark.create({
           data: { userId, projectId },
         });
+
+        //create a notification for the project owner
+        await createNotification(
+          project.userId, //project owner's ID
+          projectId,
+          "BOOKMARK",
+          `Your project was bookmarked!`
+        );
+
         return res.status(201).json(bookmark);
       }
     } catch (error) {

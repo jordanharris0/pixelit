@@ -2,7 +2,7 @@ const router = require("express").Router();
 module.exports = router;
 
 router.use("/auth", require("./authAccount"));
-router.use("/authProjects", require("./authProjects"));
+router.use("/auth", require("./authProjects"));
 router.use("/admin", require("./admin"));
 router.use("/projects", require("./projects"));
 router.use("/users", require("./users"));

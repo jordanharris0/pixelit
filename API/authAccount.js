@@ -325,7 +325,7 @@ router.get("/users/:userId/activity", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//get popularity metrics of a project  -- Need Project to test
+//get popularity metrics of a project  -- WORKS
 router.get("/projects/:projectId/metrics", async (req, res, next) => {
   const { projectId } = req.params;
 
@@ -358,7 +358,7 @@ router.get("/projects/:projectId/metrics", async (req, res, next) => {
 
 //<---------- Handles User Content Reports ---------->
 
-//report a project -- Need Project to test
+//report a project -- WORKS
 router.post("/reports", isLoggedIn, async (req, res, next) => {
   const { projectId, reason } = req.body;
   const userId = req.user.userId;
@@ -384,7 +384,7 @@ router.post("/reports", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//report a comment -- Need Comment to test
+//report a comment -- WORKS
 router.post("/comments/report", isLoggedIn, async (req, res, next) => {
   const { commentId, reason } = req.body;
   const userId = req.user.userId;

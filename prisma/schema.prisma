@@ -105,6 +105,8 @@ model CanvasData {
 
     // Relationship
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+    
+    @@unique([projectId, frameNumber])               //unique constraint
 }
 
 // Settings for project animations, such as frame rate and loop options
@@ -123,7 +125,7 @@ model AnimationSetting {
 model Version {
     versionId      String    @id @default(uuid())    // Unique identifier for version entry
     projectId      String                            // Project associated with this version
-    timestamp      DateTime  @default(now())         // When this version was created
+    createdAt      DateTime  @default(now())         // When this version was created
     pixels         Json                              // JSON snapshot of the canvas state at this version
 
     // Relationship
@@ -211,8 +213,8 @@ model Notification {
 model Report {
   reportId    String   @id @default(uuid())
   userId      String                                 // The user who reported the content
-  projectId   String                                 // The reported project
-  commentId   String                                 // The reported comment
+  projectId   String?                                // The reported project
+  commentId   String?                                // The reported comment
   reason      String                                 // Reason for reporting
   createdAt   DateTime @default(now())
   
@@ -227,7 +229,7 @@ model ActivityLog {
   userId        String?                               // User who performed the action, optional if system action
   actionType    String                                // Type of action (e.g., "DELETE_PROJECT", "UPDATE_ROLE")
   description   String                                // Description of the action
-  timestamp     DateTime @default(now())              // When the action occurred
+  createdAt     DateTime @default(now())              // When the action occurred
 
   user          User?    @relation(fields: [userId], references: [userId], onDelete: SetNull)
 }

@@ -6,7 +6,7 @@ const prisma = require("../prisma");
 
 //<---------- Handles Animation Routes ---------->
 
-//create animation settings for a project
+//create animation settings for a project -- WORKS
 router.post(
   "/projects/:projectId/animation",
   isLoggedIn,
@@ -47,7 +47,7 @@ router.post(
   }
 );
 
-//update animation settings for a project
+//update animation settings for a project -- WORKS
 router.patch(
   "/projects/:projectId/animation",
   isLoggedIn,
@@ -80,7 +80,7 @@ router.patch(
   }
 );
 
-//get animation settings for a project
+//get animation settings for a project -- WORKS
 router.get(
   "/projects/:projectId/animation",
   isLoggedIn,

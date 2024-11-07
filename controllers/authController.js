@@ -160,10 +160,24 @@ async function createNotification(userId, projectId, type, message) {
   }
 }
 
+//merge canvas data function for drafts
+function mergePixels(existingPixels, newPixels) {
+  const existingPixelMap = new Map(
+    JSON.parse(existingPixels).map((pixel) => [`${pixel.x},${pixel.y}`, pixel])
+  );
+
+  for (const newPixel of newPixels) {
+    existingPixelMap.set(`${newPixel.x},${newPixel.y}`, newPixel);
+  }
+
+  return JSON.stringify(Array.from(existingPixelMap.values()));
+}
+
 module.exports = {
   createUser,
   authenticate,
   isLoggedIn,
   isAdmin,
   createNotification,
+  mergePixels,
 };

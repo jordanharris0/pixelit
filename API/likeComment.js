@@ -41,10 +41,57 @@ router.post("/projects/:projectId/like", isLoggedIn, async (req, res, next) => {
       const like = await prisma.like.create({
         data: { userId, projectId },
       });
+
+      //create a notification for the project owner
+      await createNotification(
+        project.userId, //project owner's ID
+        projectId,
+        "LIKE",
+        `Your project received a new like!`
+      );
+
       return res.status(201).json(like);
     }
   } catch (error) {
     console.error("Error toggling like on project:", error.message);
+    next(error);
+  }
+});
+
+//get likes on a project
+router.get("/projects/:projectId/likes", async (req, res, next) => {
+  const { projectId } = req.params;
+
+  try {
+    //check if the project exists
+    const project = await prisma.project.findUnique({
+      where: { projectId },
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found." });
+    }
+
+    //fetch all likes on the project
+    const likes = await prisma.like.findMany({
+      where: { projectId },
+      select: {
+        userId: true,
+        user: {
+          select: {
+            username: true,
+            profilePicture: false, //optional field, if want to display profile pictures
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Likes retrieved successfully.",
+      likes,
+    });
+  } catch (error) {
+    console.error("Error retrieving likes on project:", error.message);
     next(error);
   }
 });
@@ -65,6 +112,7 @@ router.post(
         return res.status(404).json({ message: "Project not found." });
       }
 
+      //create the comment
       const comment = await prisma.comment.create({
         data: {
           userId,
@@ -72,6 +120,14 @@ router.post(
           content,
         },
       });
+
+      //create a notification for the project owner
+      await createNotification(
+        project.userId, //project owner's ID
+        projectId,
+        "COMMENT",
+        `Your project received a new comment!`
+      );
 
       res.status(201).json(comment);
     } catch (error) {

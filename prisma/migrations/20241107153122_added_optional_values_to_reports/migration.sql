@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Report" ALTER COLUMN "projectId" DROP NOT NULL,
+ALTER COLUMN "commentId" DROP NOT NULL;

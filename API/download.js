@@ -1,6 +1,9 @@
 const router = require("express").Router();
 module.exports = router;
-const { isLoggedIn } = require("../controllers/authController");
+const {
+  isLoggedIn,
+  createNotification,
+} = require("../controllers/authController");
 
 const prisma = require("../prisma");
 
@@ -36,16 +39,24 @@ router.post(
         });
       }
 
-      // Increment download count
+      //increment download count
       const updatedProject = await prisma.project.update({
         where: { projectId },
         data: { downloadCount: { increment: 1 } },
       });
 
-      // Log download event in the Download table
+      //log download event in the Download table
       const download = await prisma.download.create({
         data: { userId, projectId },
       });
+
+      //create a notification for the project owner
+      await createNotification(
+        project.userId, //project owner's ID
+        projectId,
+        "DOWNLOAD",
+        `Your project was downloaded!`
+      );
 
       res.status(200).json({
         message: "Download tracked successfully.",

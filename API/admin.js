@@ -4,7 +4,7 @@ const { isLoggedIn, isAdmin } = require("../controllers/authController");
 
 const prisma = require("../prisma");
 
-//get all reports for review
+//get all reports for review -- WORKS
 router.get("/reports", isLoggedIn, isAdmin, async (req, res, next) => {
   try {
     const reports = await prisma.report.findMany({
@@ -21,7 +21,7 @@ router.get("/reports", isLoggedIn, isAdmin, async (req, res, next) => {
   }
 });
 
-//delete a reported project
+//delete a reported project -- WORKS
 router.delete(
   "/projects/:projectId",
   isLoggedIn,
@@ -49,10 +49,10 @@ router.delete(
   }
 );
 
-//get all reported comments
+//get all reported comments -- WORKS
 router.get("/comments/reports", isLoggedIn, isAdmin, async (req, res, next) => {
   try {
-    const reportedComments = await prisma.reportComment.findMany({
+    const reportedComments = await prisma.report.findMany({
       include: {
         user: { select: { username: true } }, // User who reported
         comment: {
@@ -70,7 +70,7 @@ router.get("/comments/reports", isLoggedIn, isAdmin, async (req, res, next) => {
   }
 });
 
-//delete reported comment
+//delete reported comment -- WORKS
 router.delete(
   "/comments/:commentId",
   isLoggedIn,
@@ -100,7 +100,7 @@ router.delete(
   }
 );
 
-//Activity log for admin
+//Activity log for admin -- WORKS
 router.get("/activity-log", isLoggedIn, isAdmin, async (req, res, next) => {
   try {
     const activityLog = await prisma.activityLog.findMany({
