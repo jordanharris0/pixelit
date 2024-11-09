@@ -106,7 +106,7 @@ model CanvasData {
     // Relationship
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
     
-    @@unique([projectId, frameNumber])               //unique constraint
+    @@unique([projectId, frameNumber])               // Compound unique constraint
 }
 
 // Settings for project animations, such as frame rate and loop options
@@ -148,9 +148,9 @@ model Collaboration {
 
 model Download {
   downloadId     String   @id @default(uuid())        // Unique identifier for each download event
-  userId         String                                 // ID of the user who downloaded
-  projectId      String                                 // ID of the downloaded project
-  downloadedAt   DateTime @default(now())               // Timestamp of download event
+  userId         String                               // ID of the user who downloaded
+  projectId      String                               // ID of the downloaded project
+  downloadedAt   DateTime @default(now())             // Timestamp of download event
 
   // Relationships
   user           User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
@@ -193,6 +193,8 @@ model Bookmark {
     // Relationships
     user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+
+    @@unique([projectId, userId], name: "userId_projectId_unique")  // Compound unique constraint
 }
 
 // Allows user to be notified when someone interacts with their project

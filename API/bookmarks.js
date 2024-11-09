@@ -9,7 +9,7 @@ const prisma = require("../prisma");
 
 //<---------- Handles Bookmark Routes ---------->
 
-//create bookmark on an project
+//create bookmark on an project -- WORKS
 router.post(
   "/projects/:projectId/bookmark",
   isLoggedIn,
@@ -26,7 +26,7 @@ router.post(
 
       //check if the bookmark already exists
       const existingBookmark = await prisma.bookmark.findUnique({
-        where: { userId_projectId: { userId, projectId } },
+        where: { userId_projectId_unique: { userId, projectId } },
       });
 
       if (existingBookmark) {
@@ -58,7 +58,7 @@ router.post(
   }
 );
 
-//get all bookmarks for logged in user
+//get all bookmarks for logged in user -- WORKS
 router.get("/user/bookmarks", isLoggedIn, async (req, res, next) => {
   const userId = req.user.userId;
 

@@ -6,7 +6,7 @@ const prisma = require("../prisma");
 
 //<---------- v Handles Canvas Data Routes v ---------->
 
-//create new canvas data for a project
+//create new canvas data for a project -- might not need
 router.post(
   "/projects/:projectId/canvas",
   isLoggedIn,
@@ -46,35 +46,38 @@ router.post(
   }
 );
 
-//update canvas data on a project
+//update canvas size on a project -- might merge with project details patch route
 router.patch(
   "/projects/:projectId/canvas/:canvasId",
   isLoggedIn,
   async (req, res, next) => {
     const { canvasId } = req.params;
-    const { frameNumber, width, height, pixels } = req.body;
+    const { width, height } = req.body;
     const userId = req.user.userId;
 
     try {
-      //check if the canvas and project exist and belong to the user
+      // Check if the canvas and project exist and belong to the user
       const canvasData = await prisma.canvasData.findUnique({
         where: { canvasId },
         include: { project: true },
       });
 
       if (!canvasData || canvasData.project.userId !== userId) {
-        return res
-          .status(403)
-          .json({ message: "Unauthorized to update this canvas data." });
+        return res.status(403).json({
+          message: "Unauthorized to update this canvas data.",
+        });
       }
 
-      //update the canvas data
+      // Update only width and height
       const updatedCanvasData = await prisma.canvasData.update({
         where: { canvasId },
-        data: { frameNumber, width, height, pixels },
+        data: { width, height },
       });
 
-      res.json(updatedCanvasData);
+      res.json({
+        message: "Canvas size updated successfully.",
+        updatedCanvasData,
+      });
     } catch (error) {
       console.error("Error updating canvas data:", error.message);
       next(error);
@@ -82,7 +85,7 @@ router.patch(
   }
 );
 
-//delete canvas data fro a project
+//delete canvas data fro a project -- change to delete a frame
 router.delete(
   "/projects/:projectId/canvas/:canvasId",
   isLoggedIn,
