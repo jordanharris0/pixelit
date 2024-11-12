@@ -13,6 +13,9 @@ router.get("/projects", isLoggedIn, async (req, res, next) => {
   try {
     const projects = await prisma.project.findMany({
       where: { userId },
+      include: {
+        canvasData: true,
+      },
     });
 
     res.json(projects);
@@ -22,7 +25,7 @@ router.get("/projects", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//create new project/canvas data for logged in user -- needs testing
+//create new project/canvas data for logged in user -- WORKS
 router.post("/projects", isLoggedIn, async (req, res, next) => {
   const { title, description, tags, isPublic, width, height, pixels } =
     req.body;
@@ -58,13 +61,12 @@ router.post("/projects", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//create a new frame in existing project
+//create a new frame in existing project -- WORKS
 router.post(
   "/projects/:projectId/frames",
   isLoggedIn,
   async (req, res, next) => {
     const { projectId } = req.params;
-    const { frameNumber, pixels } = req.body;
     const userId = req.user.userId;
 
     try {
@@ -79,31 +81,26 @@ router.post(
         });
       }
 
-      //check if a frame with the same frameNumber already exists for the project
-      const existingFrame = await prisma.canvasData.findUnique({
-        where: {
-          projectId_frameNumber: {
-            projectId,
-            frameNumber,
-          },
-        },
+      //find the highest existing frame number and increment it by one
+      const maxFrame = await prisma.canvasData.findFirst({
+        where: { projectId },
+        orderBy: { frameNumber: "desc" },
       });
 
-      if (existingFrame) {
-        return res.status(400).json({
-          message:
-            "Frame with this frame number already exists for the project.",
-        });
-      }
+      const newFrameNumber = maxFrame ? maxFrame.frameNumber + 1 : 1; //start with 1 if no frames exist
+
+      //use width and height from the last frame if available, or default if not
+      const width = maxFrame?.width || 32;
+      const height = maxFrame?.height || 32;
 
       //create the new frame data entry
       const newFrame = await prisma.canvasData.create({
         data: {
           projectId,
-          frameNumber,
-          pixels: JSON.stringify(pixels), //convert pixels to JSON string
-          width: project.width, //inherit project's width and height
-          height: project.height,
+          frameNumber: newFrameNumber,
+          pixels: JSON.stringify([]), //start with an empty array for pixels
+          width, //inherit project's width and height
+          height,
         },
       });
 
@@ -118,7 +115,7 @@ router.post(
   }
 );
 
-//update project details for logged in user -- needs testing
+//update project details for logged in user -- WORKS
 router.patch("/projects/:projectId", isLoggedIn, async (req, res, next) => {
   const { projectId } = req.params;
   const { title, description, tags, isPublic, width, height } = req.body;
@@ -264,5 +261,62 @@ router.delete("/projects/:projectId", isLoggedIn, async (req, res, next) => {
     next(error);
   }
 });
+
+//delete a frame from project -- WORKS
+router.delete(
+  "/projects/:projectId/frames/:frameNumber",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, frameNumber } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      //check if project exists and belongs to user
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+      });
+
+      if (!project || project.userId != userId) {
+        return res.status(403).json({
+          message: "Unauthorized to delete this frame",
+        });
+      }
+
+      //check if frame exists
+      const frameToDelete = await prisma.canvasData.findUnique({
+        where: {
+          projectId_frameNumber: {
+            projectId,
+            frameNumber: parseInt(frameNumber),
+          },
+        },
+      });
+
+      if (!frameToDelete) {
+        return res.status(404).json({
+          message: "frame not found.",
+        });
+      }
+
+      //delete specified frame
+      const deletedFrame = await prisma.canvasData.delete({
+        where: {
+          projectId_frameNumber: {
+            projectId,
+            frameNumber: parseInt(frameNumber),
+          },
+        },
+      });
+
+      res.status(200).json({
+        message: "Frame deleted successfully.",
+        deletedFrame,
+      });
+    } catch (error) {
+      console.error("Error delteing frame: ", error.message);
+      next(error);
+    }
+  }
+);
 
 //<-------------------- ^^^^^^ -------------------->

@@ -9,7 +9,7 @@ const prisma = require("../prisma");
 
 //<---------- v Handles Liking and Commenting Routes v ---------->
 
-//liking a project
+//liking a project -- WORKS
 router.post("/projects/:projectId/like", isLoggedIn, async (req, res, next) => {
   const { projectId } = req.params;
   const userId = req.user.userId;
@@ -24,7 +24,7 @@ router.post("/projects/:projectId/like", isLoggedIn, async (req, res, next) => {
     //check if the like already exists
     const existingLike = await prisma.like.findUnique({
       where: {
-        userId_projectId: { userId, projectId },
+        userId_projectId_unique: { userId, projectId },
       },
     });
 
@@ -58,7 +58,7 @@ router.post("/projects/:projectId/like", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//get likes on a project
+//get likes on a project -- WORKS
 router.get("/projects/:projectId/likes", async (req, res, next) => {
   const { projectId } = req.params;
 
@@ -96,7 +96,7 @@ router.get("/projects/:projectId/likes", async (req, res, next) => {
   }
 });
 
-//creating a comment on a project
+//creating a comment on a project -- WORKS
 router.post(
   "/projects/:projectId/comment",
   isLoggedIn,
@@ -137,7 +137,7 @@ router.post(
   }
 );
 
-//getting comments on a project
+//getting comments on a project -- WORKS
 router.get("/projects/:projectId/comments", async (req, res, next) => {
   const { projectId } = req.params;
 
@@ -154,7 +154,7 @@ router.get("/projects/:projectId/comments", async (req, res, next) => {
   }
 });
 
-//update comment on a project
+//update comment on a project -- WORKS
 router.patch(
   "/projects/:projectId/comments/:commentId",
   isLoggedIn,
@@ -193,7 +193,7 @@ router.patch(
   }
 );
 
-//deleting a comment the user made
+//deleting a comment the loggedIn user made -- WORKS
 router.delete(
   "/projects/:projectId/comments/:commentId",
   isLoggedIn,
@@ -222,9 +222,53 @@ router.delete(
         where: { commentId },
       });
 
-      res.status(204).send(); //successfully deleted with no content
+      res.status(204).json({ message: "Comment deleted successfully" }); //successfully deleted with no content
     } catch (error) {
       console.error("Error deleting comment:", error.message);
+      next(error);
+    }
+  }
+);
+
+//allow project owner to delete any comment on their project -- WORKS
+router.delete(
+  "/projects/:projectId/comments/:commentId/projectOwner",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, commentId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      //check if the project exists and belongs to the user
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+      });
+
+      if (!project || project.userId !== userId) {
+        return res.status(403).json({
+          message: "Unauthorized to delete comments on this project.",
+        });
+      }
+
+      //check if the comment exists on this project
+      const comment = await prisma.comment.findUnique({
+        where: { commentId },
+      });
+
+      if (!comment || comment.projectId !== projectId) {
+        return res.status(404).json({
+          message: "Comment not found on this project.",
+        });
+      }
+
+      //delete the comment
+      await prisma.comment.delete({
+        where: { commentId },
+      });
+
+      res.status(200).json({ message: "Comment deleted successfully." });
+    } catch (error) {
+      console.error("Error deleting comment: ", error.message);
       next(error);
     }
   }

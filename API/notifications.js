@@ -6,8 +6,8 @@ const prisma = require("../prisma");
 
 //<---------- Handles Notification Routes ---------->
 
-//get all notifications
-router.get("/notifications", isLoggedIn, async (req, res, next) => {
+//get all notifications -- WORKS
+router.get("/", isLoggedIn, async (req, res, next) => {
   const userId = req.user.userId;
 
   try {
@@ -36,26 +36,22 @@ router.get("/notifications", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//mark a notification as read
-router.patch(
-  "/notifications/:notificationId",
-  isLoggedIn,
-  async (req, res, next) => {
-    const { notificationId } = req.params;
+//mark a notification as read  -- WORKS
+router.patch("/:notificationId", isLoggedIn, async (req, res, next) => {
+  const { notificationId } = req.params;
 
-    try {
-      const notification = await prisma.notification.update({
-        where: { notificationId },
-        data: { isRead: true },
-      });
+  try {
+    const notification = await prisma.notification.update({
+      where: { notificationId },
+      data: { isRead: true },
+    });
 
-      res
-        .status(200)
-        .json({ message: "Notification marked as read.", notification });
-    } catch (error) {
-      console.error("Error marking notification as read:", error.message);
-      next(error);
-    }
+    res
+      .status(200)
+      .json({ message: "Notification marked as read.", notification });
+  } catch (error) {
+    console.error("Error marking notification as read:", error.message);
+    next(error);
   }
-);
+});
 //<-------------------- ^^^^^^ -------------------->

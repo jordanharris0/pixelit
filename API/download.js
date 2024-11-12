@@ -9,7 +9,7 @@ const prisma = require("../prisma");
 
 //<---------- Handles Download Activity Routes ---------->
 
-//download and track download activity for a project
+//download and track download activity for a project -- WORKS
 router.post(
   "/projects/:projectId/download",
   isLoggedIn,
@@ -71,7 +71,7 @@ router.post(
   }
 );
 
-//user download history
+//user download history --
 router.get("/users/:userId/downloads", isLoggedIn, async (req, res, next) => {
   const { userId } = req.params;
 

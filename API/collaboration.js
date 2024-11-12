@@ -6,7 +6,7 @@ const prisma = require("../prisma");
 
 //<---------- Handles Collaboration Routes ---------->
 
-//add collaborator to a project
+//add collaborator to a project -- WORKS
 router.post(
   "/projects/:projectId/collaborators",
   isLoggedIn,
@@ -37,7 +37,7 @@ router.post(
   }
 );
 
-//update collaborator roles
+//update collaborator roles -- WORKS
 router.patch(
   "/projects/:projectId/collaborators/:collaboratorId",
   isLoggedIn,
@@ -68,7 +68,7 @@ router.patch(
   }
 );
 
-//deletes a collaborator from a project
+//deletes a collaborator from a project -- WORKS
 router.delete(
   "/projects/:projectId/collaborators/:collaboratorId",
   isLoggedIn,
@@ -89,7 +89,9 @@ router.delete(
         where: { userId_projectId: { userId: collaboratorId, projectId } },
       });
 
-      res.status(204).send();
+      res.status(204).json({
+        message: "Collaborator successfully deleted.",
+      });
     } catch (error) {
       console.error("Error removing collaborator:", error.message);
       next(error);

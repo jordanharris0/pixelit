@@ -76,20 +76,21 @@ model Project {
 
 // Template layer system for project tracing guides
 model TemplateLayer {
-    templateLayerId String    @id @default(uuid())  // Unique identifier for template layer
-    projectId       String                           // Project associated with this template layer
-    imageUrl        String                           // URL of the template image
-    opacity         Float     @default(0.5)          // Opacity of the template (0-1 range)
-    isLocked        Boolean   @default(false)        // Layer locking status
-    positionX       Int       @default(0)            // Horizontal position on the canvas
-    positionY       Int       @default(0)            // Vertical position on the canvas
-    scale           Float     @default(1.0)          // Scale factor for the template image
-    flipHorizontal  Boolean   @default(false)        // Horizontal flip status
-    flipVertical    Boolean   @default(false)        // Vertical flip status
-    rotation        Int       @default(0)            // Rotation angle in degrees
+    templateLayerId   String      @id @default(uuid())  // Unique identifier for template layer
+    projectId         String                           // Project associated with this template layer
+    imageUrl          String                           // URL of the template image
+    opacity           Float       @default(0.5)          // Opacity of the template (0-1 range)
+    isLocked          Boolean     @default(false)        // Layer locking status
+    positionX         Int         @default(0)            // Horizontal position on the canvas
+    positionY         Int         @default(0)            // Vertical position on the canvas
+    scale             Float       @default(1.0)          // Scale factor for the template image
+    flipHorizontal    Boolean     @default(false)        // Horizontal flip status
+    flipVertical      Boolean     @default(false)        // Vertical flip status
+    rotation          Int         @default(0)            // Rotation angle in degrees
+    predefinedImages  String[]    @default([])           // Array of stored imageUrls
 
     // Relationship
-    project         Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+    project           Project     @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
 }
 
 // Stores pixel data for each frame in a project animation
@@ -144,6 +145,8 @@ model Collaboration {
     // Relationships
     project         Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
     user            User      @relation(fields: [userId], references: [userId], onDelete: Cascade)        // Link to user
+
+    @@unique([userId, projectId])                      //Compound unique constraint
 }
 
 model Download {
@@ -167,6 +170,8 @@ model Like {
     // Relationships
     user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+
+    @@unique([userId, projectId], name: "userId_projectId_unique") // Compound unique constraint
 }
 
 // Allows users to leave comments on projects

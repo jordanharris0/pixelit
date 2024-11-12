@@ -4,7 +4,7 @@ module.exports = router;
 const prisma = require("../prisma");
 const { isLoggedIn } = require("../controllers/authController");
 
-//search or filter projects
+//search or filter projects -- WORKS
 router.get("/projects/search", async (req, res, next) => {
   const { query, sort, tags, timeframe } = req.query;
 
@@ -49,7 +49,7 @@ router.get("/projects/search", async (req, res, next) => {
   }
 });
 
-//get trending projects
+//get trending projects -- WORKS
 router.get("/projects/trending", async (req, res, next) => {
   const { timeframe } = req.query;
 
@@ -90,7 +90,7 @@ router.get("/projects/trending", async (req, res, next) => {
   }
 });
 
-//search anf filter user profiles
+//search and filter user profiles -- WORKS
 router.get("/users/search", async (req, res, next) => {
   const { query, tags } = req.query;
 

@@ -2,7 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const bcrypt = require("bcrypt");
 
-//seed new data -- v --
+// <---- seed new data v ---->
 // async function main() {
 //   // Hash password for users
 //   const passwordHash = await bcrypt.hash("testing", 10);
@@ -354,6 +354,13 @@ async function main() {
       userId: admin.userId,
       actionType: "BAN_USER",
       description: "Banned a user for violating guidelines.",
+    },
+  });
+
+  await prisma.templateLayer.create({
+    data: {
+      projectId: "26850587-ad2b-4261-84aa-c4548615cc63", // Replace with an actual projectId or set it dynamically
+      predefinedImages: ["https://example.com/template1.png"],
     },
   });
 
