@@ -4,16 +4,22 @@ const { isLoggedIn } = require("../controllers/authController");
 
 const prisma = require("../prisma");
 
+const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const s3 = require("../controllers/s3Client"); // Ensure this exports s3 instance correctly
+
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
+
 //<---------- Handles Template Layer Routes ---------->
 
-//create a template layer for a project
+//create a template layer for a project -- WORKS
 router.post(
   "/projects/:projectId/template-layer",
   isLoggedIn,
+  upload.single("file"), //multer middleware for single file upload
   async (req, res, next) => {
     const { projectId } = req.params;
     const {
-      imageUrl,
       opacity,
       isLocked,
       positionX,
@@ -24,6 +30,7 @@ router.post(
       rotation,
     } = req.body;
     const userId = req.user.userId;
+    const file = req.file;
 
     try {
       //check if the project exists and belongs to the user
@@ -34,18 +41,30 @@ router.post(
         });
       }
 
+      //define S3 upload parameters
+      const s3Params = {
+        Bucket: "pixelit-templates-pfp",
+        Key: `templates/${Date.now()}_${file.originalname}`, //unique key for each upload
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      };
+
+      //upload file to S3
+      await s3.send(new PutObjectCommand(s3Params));
+      const imageUrl = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+
       const templateLayer = await prisma.templateLayer.create({
         data: {
           projectId,
           imageUrl,
-          opacity,
-          isLocked,
-          positionX,
-          positionY,
-          scale,
-          flipHorizontal,
-          flipVertical,
-          rotation,
+          opacity: parseFloat(opacity),
+          isLocked: isLocked === "true",
+          positionX: parseInt(positionX, 10),
+          positionY: parseInt(positionY, 10),
+          scale: parseFloat(scale),
+          flipHorizontal: flipHorizontal === "true",
+          flipVertical: flipVertical === "true",
+          rotation: parseInt(rotation, 10),
         },
       });
 
@@ -57,10 +76,11 @@ router.post(
   }
 );
 
-//updates template layer for a project
+//updates template layer for a project -- WORKS
 router.patch(
   "/projects/:projectId/template-layer/:layerId",
   isLoggedIn,
+  upload.single("file"), //allow optional file upload
   async (req, res, next) => {
     const { layerId } = req.params;
     const {
@@ -74,6 +94,7 @@ router.patch(
       rotation,
     } = req.body;
     const userId = req.user.userId;
+    const file = req.file;
 
     try {
       //check if the layer exists and belongs to a project owned by the user
@@ -88,17 +109,33 @@ router.patch(
           .json({ message: "Unauthorized to update this template layer." });
       }
 
+      let imageUrl = templateLayer.imageUrl;
+
+      //if a new file is uploaded, upload it to S3 and update the URL
+      if (file) {
+        const s3Params = {
+          Bucket: "pixelit-templates-pfp",
+          Key: `templates/${Date.now()}_${file.originalname}`,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+        };
+
+        await s3.send(new PutObjectCommand(s3Params));
+        imageUrl = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+      }
+
       const updatedTemplateLayer = await prisma.templateLayer.update({
         where: { templateLayerId: layerId },
         data: {
-          opacity,
-          isLocked,
-          positionX,
-          positionY,
-          scale,
-          flipHorizontal,
-          flipVertical,
-          rotation,
+          imageUrl,
+          opacity: parseFloat(opacity),
+          isLocked: isLocked === "true",
+          positionX: parseInt(positionX, 10),
+          positionY: parseInt(positionY, 10),
+          scale: parseFloat(scale),
+          flipHorizontal: flipHorizontal === "true",
+          flipVertical: flipVertical === "true",
+          rotation: parseInt(rotation, 10),
         },
       });
 
@@ -110,7 +147,7 @@ router.patch(
   }
 );
 
-//deletes template layer for a project
+//deletes template layer for a project -- WORKS
 router.delete(
   "/projects/:projectId/template-layer/:layerId",
   isLoggedIn,
@@ -131,11 +168,23 @@ router.delete(
           .json({ message: "Unauthorized to delete this template layer." });
       }
 
+      //if imageUrl exists, delete the image file from S3
+      if (
+        templateLayer.imageUrl &&
+        templateLayer.imageUrl.includes("s3.amazonaws.com")
+      ) {
+        const s3Params = {
+          Bucket: "pixelit-templates-pfp",
+          Key: templateLayer.imageUrl.split("/").slice(-2).join("/"), // Extract key from URL
+        };
+        await s3.send(new DeleteObjectCommand(s3Params));
+      }
+
       await prisma.templateLayer.delete({
         where: { templateLayerId: layerId },
       });
 
-      res.status(204).send();
+      res.status(204).json({ message: "Template successfully deleted." });
     } catch (error) {
       console.error("Error deleting template layer:", error.message);
       next(error);

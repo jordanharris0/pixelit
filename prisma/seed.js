@@ -357,13 +357,6 @@ async function main() {
     },
   });
 
-  await prisma.templateLayer.create({
-    data: {
-      projectId: "26850587-ad2b-4261-84aa-c4548615cc63", // Replace with an actual projectId or set it dynamically
-      predefinedImages: ["https://example.com/template1.png"],
-    },
-  });
-
   console.log("Additional data seeded successfully!");
 }
 
