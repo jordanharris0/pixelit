@@ -4,9 +4,14 @@ const {
   createUser,
   authenticate,
   isLoggedIn,
-  createNotification,
 } = require("../controllers/authController");
 // const cache = require("../middleware/cache");
+
+const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const s3 = require("../controllers/s3Client");
+
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 
 const prisma = require("../prisma");
 const bcrypt = require("bcrypt");
@@ -91,83 +96,108 @@ router.get("/account", isLoggedIn, async (req, res, next) => {
 });
 
 //updater account info -- WORKS
-router.patch("/account", isLoggedIn, async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
+router.patch(
+  "/account",
+  isLoggedIn,
+  upload.single("profilePicture"),
+  async (req, res, next) => {
+    try {
+      const userId = req.user.userId;
+      const { firstName, lastName, username, email, bio } = req.body;
+      const file = req.file;
 
-    //check if the user exists
-    const userExists = await prisma.user.findUnique({ where: { userId } });
+      //check if the user exists
+      const userExists = await prisma.user.findUnique({ where: { userId } });
 
-    if (!userExists) {
-      return next({
-        status: 404,
-        message: `Could not find user with ID ${userId}`,
-      });
-    }
-
-    //destructure fields from the request body
-    const { firstName, lastName, username, email, bio, profilePicture } =
-      req.body;
-
-    //check if at least one field is provided for update
-    if (
-      !firstName &&
-      !lastName &&
-      !username &&
-      !email &&
-      !bio &&
-      !profilePicture
-    ) {
-      return next({
-        status: 422,
-        message: "At least one field is required to update account information",
-      });
-    }
-
-    //build the updated data object with only provided fields
-    const updatedData = {};
-
-    //validate email format
-    if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email format." });
+      if (!userExists) {
+        return next({
+          status: 404,
+          message: `Could not find user with ID ${userId}`,
+        });
       }
 
-      // Check for unique email
-      const emailExists = await prisma.user.findUnique({
-        where: { email },
-      });
-      if (emailExists && emailExists.userId !== userId) {
-        return res.status(400).json({ message: "Email already in use." });
+      //check if at least one field is provided for update
+      if (!firstName && !lastName && !username && !email && !bio && !file) {
+        return next({
+          status: 422,
+          message:
+            "At least one field is required to update account information",
+        });
       }
 
-      updatedData.email = email;
+      //build the updated data object with only provided fields
+      const updatedData = {};
+
+      if (firstName) updatedData.firstName = firstName;
+      if (lastName) updatedData.lastName = lastName;
+      if (username) updatedData.username = username;
+
+      //validate email format
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return res.status(400).json({ message: "Invalid email format." });
+        }
+
+        // Check for unique email
+        const emailExists = await prisma.user.findUnique({
+          where: { email },
+        });
+        if (emailExists && emailExists.userId !== userId) {
+          return res.status(400).json({ message: "Email already in use." });
+        }
+
+        updatedData.email = email;
+      }
+
+      if (bio) updatedData.bio = bio;
+
+      //if a file is uploaded, handle S3 upload and update profilePicture URL
+      if (file) {
+        //delete existing profile picture from S3 if it exists
+        if (userExists.profilePicture) {
+          const oldKey = userExists.profilePicture
+            .split("/")
+            .slice(-2)
+            .join("/");
+          await s3.send(
+            new DeleteObjectCommand({
+              Bucket: "pixelit-templates-pfp",
+              Key: oldKey,
+            })
+          );
+        }
+
+        //define S3 upload parameters for the new profile picture
+        const s3Params = {
+          Bucket: "pixelit-templates-pfp",
+          Key: `profile-pictures/${userId}_${Date.now()}_${file.originalname}`,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+        };
+
+        //upload new profile picture to S3
+        await s3.send(new PutObjectCommand(s3Params));
+        updatedData.profilePicture = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+      }
+
+      //perform the update
+      const updatedUser = await prisma.user.update({
+        where: { userId },
+        data: updatedData,
+      });
+
+      //respond with the updated user data
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error.message);
+      next({
+        status: 500,
+        message: "Failed to update account information",
+      });
     }
-
-    if (firstName) updatedData.firstName = firstName;
-    if (lastName) updatedData.lastName = lastName;
-    if (username) updatedData.username = username;
-    if (email) updatedData.email = email;
-    if (bio) updatedData.bio = bio;
-    if (profilePicture) updatedData.profilePicture = profilePicture;
-
-    //perform the update
-    const updatedUser = await prisma.user.update({
-      where: { userId },
-      data: updatedData,
-    });
-
-    //respond with the updated user data
-    res.json(updatedUser);
-  } catch (error) {
-    console.error("Error updating user:", error.message);
-    next({
-      status: 500,
-      message: "Failed to update account information",
-    });
   }
-});
+);
 
 //delete account -- WORKS
 router.delete("/account", isLoggedIn, async (req, res) => {

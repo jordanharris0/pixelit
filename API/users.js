@@ -3,7 +3,7 @@ module.exports = router;
 
 const prisma = require("../prisma");
 
-//get public profile information -- W
+//get public profile information -- WORKS
 router.get("/:userId", async (req, res, next) => {
   const { userId } = req.params;
 

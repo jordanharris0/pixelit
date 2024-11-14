@@ -5,7 +5,7 @@ const { isLoggedIn } = require("../controllers/authController");
 const prisma = require("../prisma");
 
 const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
-const s3 = require("../controllers/s3Client"); // Ensure this exports s3 instance correctly
+const s3 = require("../controllers/s3Client");
 
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
