@@ -50,6 +50,7 @@ model Project {
     description     String?                         // Optional project description
     tags            String[]                        // Array of tags for keywords
     isPublic        Boolean   @default(true)        // Visibility setting, default is public
+    isDraft         Boolean   @default(false)       // Draft setting for projects
     downloadCount   Int       @default(0)           // Total downloads of this project
     fileUrl         String?                         // URL to the file in external storage
     bookmarkCount   Int       @default(0)           // Total bookmarks of this project
