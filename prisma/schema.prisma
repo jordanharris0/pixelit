@@ -107,8 +107,25 @@ model CanvasData {
 
     // Relationship
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
-    
-    @@unique([projectId, frameNumber])               // Compound unique constraint
+    Layer          Layer[]
+
+    @@unique([projectId, frameNumber])               // Compound unique constraint 
+}
+
+//Layer model for individual frames
+model Layer {
+  layerId          String    @id @default(uuid())
+  canvasId         String
+  name             String?                           // Optional layer name
+  pixels           Json
+  opacity          Float     @default(1.0)           // Opacity of the layer
+  isVisible        Boolean   @default(true)          // Visibility toggle
+  zIndex           Int                               // Order of the layer
+  isLocked         Boolean   @default(false)         // Lock the layer to prevent accidental edits
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  canvas     CanvasData @relation(fields: [canvasId], references: [canvasId], onDelete: Cascade)
 }
 
 // Settings for project animations, such as frame rate and loop options
