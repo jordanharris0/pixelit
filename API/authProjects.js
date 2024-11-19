@@ -14,7 +14,11 @@ router.get("/projects", isLoggedIn, async (req, res, next) => {
     const projects = await prisma.project.findMany({
       where: { userId },
       include: {
-        canvasData: true,
+        canvasData: {
+          include: {
+            layers: true,
+          },
+        },
       },
     });
 
@@ -34,7 +38,11 @@ router.get("/projects/:projectId", isLoggedIn, async (req, res, next) => {
     const project = await prisma.project.findMany({
       where: { projectId, userId },
       include: {
-        canvasData: true,
+        canvasData: {
+          include: {
+            layers: true,
+          },
+        },
       },
     });
 
@@ -192,6 +200,7 @@ router.post(
             frameNumber: parseInt(frameNumber),
           },
         },
+        include: { layers: true },
       });
 
       if (!frameToDuplicate) {
@@ -216,9 +225,27 @@ router.post(
         },
       });
 
+      //duplicate layers of each frame
+      const duplicateLayers = await Promise.all(
+        frameToDuplicate.layers.map((layer) =>
+          prisma.layer.create({
+            data: {
+              canvasId: duplicatedFrame.canvasId,
+              name: layer.name,
+              pixels: layer.pixels,
+              opacity: layer.opacity,
+              isVisible: layer.isVisible,
+              zIndex: layer.zIndex,
+              isLocked: layer.isLocked,
+            },
+          })
+        )
+      );
+
       res.status(201).json({
-        message: "Frame duplicated successfully.",
+        message: "Frame and its layers duplicated successfully.",
         duplicatedFrame,
+        duplicateLayers,
       });
     } catch (error) {
       console.error("Error duplicating frame:", error.message);
@@ -283,7 +310,7 @@ router.patch(
   async (req, res, next) => {
     const { projectId, frameNumber } = req.params;
     const userId = req.user.userId;
-    const { pixels } = req.body;
+    const { pixels, layers } = req.body;
 
     try {
       //check if the project exists and belongs to the user
@@ -305,12 +332,14 @@ router.patch(
             frameNumber: parseInt(frameNumber),
           },
         },
+        include: { layers: true },
       });
 
       let updatedPixels;
       if (existingFrame) {
         //merge the existing pixels with the new ones
         updatedPixels = mergePixels(existingFrame.pixels, pixels);
+
         //update the existing frame with merged pixels
         await prisma.canvasData.update({
           where: {
@@ -321,10 +350,43 @@ router.patch(
           },
           data: { pixels: updatedPixels },
         });
+
+        //update or create layers
+        if (layers && layers.length > 0) {
+          for (const layer of layers) {
+            if (layer.layerId) {
+              //update existing layer
+              await prisma.layer.update({
+                where: { layerId: layer.layerId },
+                data: {
+                  name: layer.name,
+                  pixels: layer.pixels,
+                  opacity: layer.opacity,
+                  isVisible: layer.isVisible,
+                  zIndex: layer.zIndex,
+                  isLocked: layer.isLocked,
+                },
+              });
+            } else {
+              //create new layer
+              await prisma.layer.create({
+                data: {
+                  canvasId: existingFrame.canvasId,
+                  name: layer.name,
+                  pixels: layer.pixels,
+                  opacity: layer.opacity,
+                  isVisible: layer.isVisible,
+                  zIndex: layer.zIndex,
+                  isLocked: layer.isLocked,
+                },
+              });
+            }
+          }
+        }
       } else {
         //create new frame data if it doesn't exist
         updatedPixels = JSON.stringify(pixels);
-        await prisma.canvasData.create({
+        const newFrame = await prisma.canvasData.create({
           data: {
             projectId,
             frameNumber: parseInt(frameNumber),
@@ -333,6 +395,25 @@ router.patch(
             height: existingProject.height,
           },
         });
+
+        //add new layers if provided
+        if (layers && layers.length > 0) {
+          await Promise.all(
+            layers.map((layer) =>
+              prisma.layer.create({
+                data: {
+                  canvasId: newFrame.canvasId,
+                  name: layer.name,
+                  pixels: layer.pixels,
+                  opacity: layer.opacity,
+                  isVisible: layer.isVisible,
+                  zIndex: layer.zIndex,
+                  isLocked: layer.isLocked,
+                },
+              })
+            )
+          );
+        }
       }
 
       res.json({
@@ -353,10 +434,10 @@ router.patch(
   async (req, res, next) => {
     const { projectId } = req.params;
     const userId = req.user.userId;
-    const { frames } = req.body; // Array of frames with new frameNumber and pixels
+    const { frames } = req.body; //array of frames with new frameNumber and pixels
 
     try {
-      // Check if project exists and belongs to the user
+      //check if project exists and belongs to the user
       const existingProject = await prisma.project.findUnique({
         where: { projectId },
       });
@@ -367,11 +448,11 @@ router.patch(
         });
       }
 
-      // Iterate over each frame to update frameNumber and pixels
+      //iterate over each frame to update frameNumber and pixels
       for (const frame of frames) {
-        const { frameNumber, pixels } = frame;
+        const { frameNumber, pixels, layers } = frame;
 
-        // Check if frame exists
+        //check if frame exists
         const existingFrame = await prisma.canvasData.findUnique({
           where: {
             projectId_frameNumber: {
@@ -379,10 +460,11 @@ router.patch(
               frameNumber,
             },
           },
+          include: { layers: true }, //include layers
         });
 
         if (existingFrame) {
-          // Update pixels for existing frame
+          //update pixels for existing frame
           const updatedPixels = mergePixels(existingFrame.pixels, pixels);
           await prisma.canvasData.update({
             where: {
@@ -393,9 +475,42 @@ router.patch(
             },
             data: { pixels: updatedPixels },
           });
+
+          //handle layers
+          if (layers && layers.length > 0) {
+            for (const layer of layers) {
+              if (layer.layerId) {
+                //update existing layer
+                await prisma.layer.update({
+                  where: { layerId: layer.layerId },
+                  data: {
+                    name: layer.name,
+                    pixels: layer.pixels,
+                    opacity: layer.opacity,
+                    isVisible: layer.isVisible,
+                    zIndex: layer.zIndex,
+                    isLocked: layer.isLocked,
+                  },
+                });
+              } else {
+                //create new layer
+                await prisma.layer.create({
+                  data: {
+                    canvasId: existingFrame.canvasId,
+                    name: layer.name,
+                    pixels: layer.pixels,
+                    opacity: layer.opacity,
+                    isVisible: layer.isVisible,
+                    zIndex: layer.zIndex,
+                    isLocked: layer.isLocked,
+                  },
+                });
+              }
+            }
+          }
         } else {
-          // Create a new frame if it doesn't exist with the given frameNumber
-          await prisma.canvasData.create({
+          //create a new frame if it doesn't exist with the given frameNumber
+          const newFrame = await prisma.canvasData.create({
             data: {
               projectId,
               frameNumber, // Set new frameNumber directly
@@ -404,6 +519,25 @@ router.patch(
               height: existingProject.height,
             },
           });
+
+          //add layers for the new frame
+          if (layers && layers.length > 0) {
+            await Promise.all(
+              layers.map((layer) =>
+                prisma.layer.create({
+                  data: {
+                    canvasId: newFrame.canvasId,
+                    name: layer.name,
+                    pixels: layer.pixels,
+                    opacity: layer.opacity,
+                    isVisible: layer.isVisible,
+                    zIndex: layer.zIndex,
+                    isLocked: layer.isLocked,
+                  },
+                })
+              )
+            );
+          }
         }
       }
 
@@ -412,6 +546,279 @@ router.patch(
       });
     } catch (error) {
       console.error("Error saving project draft:", error.message);
+      next(error);
+    }
+  }
+);
+
+//add a new layer to an existing frame -- WORKS
+router.post(
+  "/projects/:projectId/frames/:frameNumber/layers",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, frameNumber } = req.params;
+    const { pixels, opacity, isVisible, zIndex, isLocked, name } = req.body;
+    const userId = req.user.userId;
+
+    try {
+      //check if the project exists and belongs to the user
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+      });
+
+      if (!project || project.userId !== userId) {
+        return res.status(403).json({
+          message: "Unauthorized to add a layer to this frame.",
+        });
+      }
+
+      //fetch the canvas data for the given frameNumber
+      const canvas = await prisma.canvasData.findUnique({
+        where: {
+          projectId_frameNumber: {
+            projectId,
+            frameNumber: parseInt(frameNumber),
+          },
+        },
+      });
+
+      if (!canvas) {
+        return res.status(404).json({
+          message: "Frame not found.",
+        });
+      }
+
+      const newLayer = await prisma.layer.create({
+        data: {
+          canvas: {
+            connect: { canvasId: canvas.canvasId }, //link to the existing canvas
+          },
+          pixels: JSON.stringify(pixels), //convert pixels array to JSON
+          opacity,
+          isVisible,
+          zIndex,
+          isLocked,
+          name,
+        },
+      });
+
+      res.status(201).json({
+        message: "Layer created successfully.",
+        newLayer,
+      });
+    } catch (error) {
+      console.error("Error adding layer: ", error.message);
+      next(error);
+    }
+  }
+);
+
+//update a existing layer -- WORKS
+router.patch(
+  "/projects/:projectId/frames/:frameNumber/layers/:layerId",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, frameNumber, layerId } = req.params;
+    const { pixels, opacity, isLocked, zIndex } = req.body;
+    const userId = req.user.userId;
+
+    try {
+      //check if the project exists and belongs to the user
+      const project = await prisma.project.findUnique({ where: { projectId } });
+      if (!project || project.userId !== userId) {
+        return res
+          .status(403)
+          .json({ message: "Unauthorized to update this layer." });
+      }
+
+      const layer = await prisma.layer.findUnique({ where: { layerId } });
+      if (!layer) {
+        return res.status(404).json({ message: "Layer not found." });
+      }
+
+      //update the layer
+      const updatedLayer = await prisma.layer.update({
+        where: { layerId },
+        data: { pixels, opacity, isLocked, zIndex },
+      });
+
+      res.json({ message: "Layer updated successfully.", updatedLayer });
+    } catch (error) {
+      console.error("Error updating layer:", error.message);
+      next(error);
+    }
+  }
+);
+
+//duplicate a layer -- WORKS
+router.post(
+  "/projects/:projectId/frames/:frameNumber/layers/:layerId/duplicate",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, frameNumber, layerId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      //check if the project exists and belongs to the user
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+      });
+
+      if (!project || project.userId !== userId) {
+        return res.status(403).json({
+          message: "Unauthorized to duplicate a layer in this frame.",
+        });
+      }
+
+      //fetch the canvas data for the given frameNumber
+      const canvas = await prisma.canvasData.findUnique({
+        where: {
+          projectId_frameNumber: {
+            projectId,
+            frameNumber: parseInt(frameNumber),
+          },
+        },
+      });
+
+      if (!canvas) {
+        return res.status(404).json({
+          message: "Frame not found.",
+        });
+      }
+
+      //find the layer to duplicate
+      const layerToDuplicate = await prisma.layer.findUnique({
+        where: { layerId },
+      });
+
+      if (!layerToDuplicate) {
+        return res.status(404).json({
+          message: "Layer not found.",
+        });
+      }
+
+      //find the highest zIndex within the frame's layers
+      const maxZIndex = await prisma.layer.aggregate({
+        where: { canvasId: canvas.canvasId },
+        _max: { zIndex: true },
+      });
+
+      const newZIndex = maxZIndex._max.zIndex ? maxZIndex._max.zIndex + 1 : 1;
+
+      //duplicate the layer
+      const newLayer = await prisma.layer.create({
+        data: {
+          canvas: {
+            connect: { canvasId: canvas.canvasId }, //link to the existing canvas
+          },
+          pixels: layerToDuplicate.pixels, //duplicate pixel data
+          opacity: layerToDuplicate.opacity,
+          isLocked: layerToDuplicate.isLocked,
+          zIndex: newZIndex, //increment zIndex for the new layer
+          name: layerToDuplicate.name ? `${layerToDuplicate.name} Copy` : null, // Optional name adjustment
+          isVisible: layerToDuplicate.isVisible,
+        },
+      });
+
+      res.status(201).json({
+        message: "Layer duplicated successfully.",
+        newLayer,
+      });
+    } catch (error) {
+      console.error("Error duplicating layer: ", error.message);
+      next(error);
+    }
+  }
+);
+
+//reorder layers -- NEEDS TESTING
+router.patch(
+  "/projects/:projectId/frames/:frameNumber/layers/reorder/:canvasId",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, frameNumber, canvasId } = req.params; //include canvasId
+    const { layers } = req.body; //expecting an array of { layerId, zIndex }
+    const userId = req.user.userId;
+
+    console.log("Request Layers:", layers);
+
+    try {
+      //check if the project exists and belongs to the user
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+      });
+
+      if (!project || project.userId !== userId) {
+        return res.status(403).json({
+          message: "Unauthorized to reorder layers for this project.",
+        });
+      }
+
+      //validate the canvasId
+      const canvas = await prisma.canvasData.findUnique({
+        where: { canvasId },
+        include: { layers: true },
+      });
+
+      if (!canvas) {
+        return res.status(404).json({ message: "Canvas not found." });
+      }
+
+      console.log("Canvas Layers:", canvas.layers);
+
+      //ensure all layerIds belong to this canvas
+      const validLayerIds = canvas.layers.map((layer) => layer.layerId);
+      for (const { layerId } of layers) {
+        if (!validLayerIds.includes(layerId)) {
+          return res.status(404).json({
+            message: `Layer with ID ${layerId} not found in this canvas.`,
+          });
+        }
+      }
+
+      //update zIndex for each layer
+      for (const { layerId, zIndex } of layers) {
+        await prisma.layer.update({
+          where: { layerId },
+          data: { zIndex },
+        });
+      }
+
+      res.json({ message: "Layers reordered successfully." });
+    } catch (error) {
+      console.error("Error reordering layers:", error.message);
+      next(error);
+    }
+  }
+);
+
+//delete a layer -- NEEDS TESTING
+router.delete(
+  "/projects/:projectId/frames/:frameNumber/layers/:layerId",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, frameNumber, layerId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      //check if the project exists and belongs to the user
+      const project = await prisma.project.findUnique({ where: { projectId } });
+      if (!project || project.userId !== userId) {
+        return res
+          .status(403)
+          .json({ message: "Unauthorized to delete this layer." });
+      }
+
+      const layer = await prisma.layer.findUnique({ where: { layerId } });
+      if (!layer) {
+        return res.status(404).json({ message: "Layer not found." });
+      }
+
+      await prisma.layer.delete({ where: { layerId } });
+
+      res.status(204).json({ message: "Layer successfully deleted." });
+    } catch (error) {
+      console.error("Error deleting layer:", error.message);
       next(error);
     }
   }

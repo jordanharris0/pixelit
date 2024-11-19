@@ -107,7 +107,7 @@ model CanvasData {
 
     // Relationship
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
-    Layer          Layer[]
+    layers         Layer[]
 
     @@unique([projectId, frameNumber])               // Compound unique constraint 
 }
