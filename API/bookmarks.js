@@ -34,11 +34,46 @@ router.post(
         await prisma.bookmark.delete({
           where: { bookmarkId: existingBookmark.bookmarkId },
         });
+
+        //decrement bookmark count for the project
+        await prisma.project.update({
+          where: { projectId },
+          data: {
+            bookmarkCount: {
+              decrement: 1,
+              update: { where: { likesCount: { gt: 0 } } },
+            },
+          },
+        });
+
+        //decrement bookmark count for the project owner (user)
+        await prisma.user.update({
+          where: { userId: project.userId },
+          data: {
+            bookmarkCount: {
+              decrement: 1,
+              update: { where: { likesCount: { gt: 0 } } },
+            },
+          },
+        });
+
         return res.status(200).json({ message: "Project unbookmarked." });
       } else {
         //if bookmark does not exist, create it
         const bookmark = await prisma.bookmark.create({
           data: { userId, projectId },
+        });
+
+        //increment bookmark count for the project
+        await prisma.project.update({
+          where: { projectId },
+          data: { bookmarkCount: { increment: 1 } },
+        });
+
+        //increment bookmark count for the project owner (user)
+        await prisma.user.update({
+          where: { userId: project.userId },
+          data: { bookmarkCount: { increment: 1 } },
         });
 
         //create a notification for the project owner

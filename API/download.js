@@ -39,9 +39,15 @@ router.post(
         });
       }
 
-      //increment download count
+      //increment download count (project)
       const updatedProject = await prisma.project.update({
         where: { projectId },
+        data: { downloadCount: { increment: 1 } },
+      });
+
+      //increment download count for the project owner (user)
+      await prisma.user.update({
+        where: { userId: project.userId },
         data: { downloadCount: { increment: 1 } },
       });
 

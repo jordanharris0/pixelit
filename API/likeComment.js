@@ -35,11 +35,46 @@ router.post("/projects/:projectId/like", isLoggedIn, async (req, res, next) => {
           likeId: existingLike.likeId,
         },
       });
+
+      //decrement `likesCount` for the project
+      await prisma.project.update({
+        where: { projectId },
+        data: {
+          likesCount: {
+            decrement: 1,
+            update: { where: { likesCount: { gt: 0 } } },
+          },
+        },
+      });
+
+      //decrement `likesCount` for the user
+      await prisma.user.update({
+        where: { userId: project.userId },
+        data: {
+          likesCount: {
+            decrement: 1,
+            update: { where: { likesCount: { gt: 0 } } },
+          },
+        },
+      });
+
       return res.status(200).json({ message: "Project unliked." });
     } else {
       //if like does not exist, create it
       const like = await prisma.like.create({
         data: { userId, projectId },
+      });
+
+      //increment `likesCount` for the project
+      await prisma.project.update({
+        where: { projectId },
+        data: { likesCount: { increment: 1 } },
+      });
+
+      //increment `likesCount` for the user
+      await prisma.user.update({
+        where: { userId: project.userId },
+        data: { likesCount: { increment: 1 } },
       });
 
       //create a notification for the project owner
@@ -50,7 +85,7 @@ router.post("/projects/:projectId/like", isLoggedIn, async (req, res, next) => {
         `Your project received a new like!`
       );
 
-      return res.status(201).json(like);
+      return res.status(201).json({ message: "Project liked.", like });
     }
   } catch (error) {
     console.error("Error toggling like on project:", error.message);

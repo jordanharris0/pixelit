@@ -22,10 +22,11 @@ model User {
     bio                   String?                        // Optional user bio
     downloadCount         Int      @default(0)           // Total downloads across all projects by user
     bookmarkCount         Int      @default(0)           // Total bookmarks on this user's projects
+    likesCount            Int      @default(0)           // Total likes of a project
     role                  UserRole @default(USER)        // User role (enum: User || Admin)
     refreshToken          String?                        //field to store refresh token
     showBookmarks         Boolean  @default(true)        // Controls visibility of bookmarks
-    showDownloadHistory   Boolean @default(true)         // Controls visibility of download history
+    showDownloadHistory   Boolean  @default(true)        // Controls visibility of download history
     notificationsEnabled  Boolean  @default(true)        // Controls notification settings
     createdAt             DateTime @default(now())       // Account creation date
     updatedAt             DateTime @updatedAt            // Last update timestamp
@@ -51,9 +52,11 @@ model Project {
     tags            String[]                        // Array of tags for keywords
     isPublic        Boolean   @default(true)        // Visibility setting, default is public
     isDraft         Boolean   @default(false)       // Draft setting for projects
+    hasAnimation    Boolean   @default(false)       // Animation indicater
     downloadCount   Int       @default(0)           // Total downloads of this project
     fileUrl         String?                         // URL to the file in external storage
-    bookmarkCount   Int       @default(0)           // Total bookmarks of this project
+    bookmarkCount   Int       @default(0)           // Total bookmarks of a project
+    likesCount      Int       @default(0)           // Total likes of a project
     isLicensed      Boolean   @default(false)       // Phase 2: Indicates if project requires license for high-res download
     watermarkStatus Boolean   @default(true)        // Phase 1: Controls watermark on downloads
     resolution      String    @default("low")       // Phase 1: Default resolution for public downloads
@@ -61,18 +64,20 @@ model Project {
     updatedAt       DateTime  @updatedAt            // Last update timestamp
     
     // Relationships
-    user            User      @relation(fields: [userId], references: [userId], onDelete: Cascade)  // Link to creator user
-    likes           Like[]                           // Likes received on this project
-    comments        Comment[]                        // Comments on this project
-    canvasData      CanvasData[]                     // Frame data for animations
-    versions        Version[]                        // Project version history
-    animation       AnimationSetting?                // Animation settings, if applicable
-    collaborations  Collaboration[]                  // List of collaborators on the project
-    bookmarks       Bookmark[]                       // Users who bookmarked this project
-    templateLayers  TemplateLayer[]                  // Template layers associated with this project
-    downloads       Download[]                       // Log each download event for this project
-    reports         Report[]                         // Reports for NSFW content
-    notifications   Notification[]                   // User interaction notifications
+    user              User    @relation(fields: [userId], references: [userId], onDelete: Cascade)  // Link to creator user
+    likes             Like[]                           // Likes received on this project
+    comments          Comment[]                        // Comments on this project
+    canvasData        CanvasData[]                     // Frame data for animations
+    versions          Version[]                        // Project version history
+    animationSettings AnimationSetting?                // Animation settings, if applicable
+    collaborations    Collaboration[]                  // List of collaborators on the project
+    bookmarks         Bookmark[]                       // Users who bookmarked this project
+    templateLayers    TemplateLayer[]                  // Template layers associated with this project
+    downloads         Download[]                       // Log each download event for this project
+    reports           Report[]                         // Reports for NSFW content
+    notifications     Notification[]                   // User interaction notifications
+
+    animations       Animation[]
 }
 
 // Template layer system for project tracing guides
@@ -128,16 +133,34 @@ model Layer {
   canvas     CanvasData @relation(fields: [canvasId], references: [canvasId], onDelete: Cascade)
 }
 
+model Animation {
+  animationId    String           @id @default(uuid())
+  projectId      String           // Link to the parent project
+  name           String?          // Optional name for the animation
+  frames         Json             // Array of frame sequences (ordered frame IDs or data)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  project        Project          @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  settings       AnimationSetting @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
+}
+
 // Settings for project animations, such as frame rate and loop options
 model AnimationSetting {
     animationId    String    @id @default(uuid())    // Unique identifier for animation settings
     projectId      String    @unique                 // Project associated with these settings
     frameRate      Int       @default(12)            // Frames per second for playback
     loop           Boolean   @default(true)          // Should animation loop by default?
-    exportFormat   String                            // Preferred format for export (e.g., GIF, MP4)
+    exportFormat   String?                           // Preferred format for export (e.g., GIF, MP4)
+    isPublic       Boolean   @default(false)         // Controls public visibility
+    isDraft        Boolean   @default(true)          // Controls whether the animation is in draft mode
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
 
     // Relationship
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+
+    animations Animation[]
 }
 
 // Stores past versions of a project for undo/redo functionality
