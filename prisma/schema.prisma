@@ -65,26 +65,26 @@ model Project {
     
     // Relationships
     user              User    @relation(fields: [userId], references: [userId], onDelete: Cascade)  // Link to creator user
-    likes             Like[]                           // Likes received on this project
-    comments          Comment[]                        // Comments on this project
-    canvasData        CanvasData[]                     // Frame data for animations
-    versions          Version[]                        // Project version history
-    animationSettings AnimationSetting?                // Animation settings, if applicable
-    collaborations    Collaboration[]                  // List of collaborators on the project
-    bookmarks         Bookmark[]                       // Users who bookmarked this project
-    templateLayers    TemplateLayer[]                  // Template layers associated with this project
-    downloads         Download[]                       // Log each download event for this project
-    reports           Report[]                         // Reports for NSFW content
-    notifications     Notification[]                   // User interaction notifications
+    likes             Like[]                        // Likes received on this project
+    comments          Comment[]                     // Comments on this project
+    canvasData        CanvasData[]                  // Frame data for animations
+    versions          Version[]                     // Project version history
+    animationSettings AnimationSetting?             // Animation settings, if applicable
+    collaborations    Collaboration[]               // List of collaborators on the project
+    bookmarks         Bookmark[]                    // Users who bookmarked this project
+    templateLayers    TemplateLayer[]               // Template layers associated with this project
+    downloads         Download[]                    // Log each download event for this project
+    reports           Report[]                      // Reports for NSFW content
+    notifications     Notification[]                // User interaction notifications
 
     animations       Animation[]
 }
 
 // Template layer system for project tracing guides
 model TemplateLayer {
-    templateLayerId   String      @id @default(uuid())  // Unique identifier for template layer
-    projectId         String                           // Project associated with this template layer
-    imageUrl          String                           // URL of the template image
+    templateLayerId   String      @id @default(uuid())   // Unique identifier for template layer
+    projectId         String                             // Project associated with this template layer
+    imageUrl          String                             // URL of the template image
     opacity           Float       @default(0.5)          // Opacity of the template (0-1 range)
     isLocked          Boolean     @default(false)        // Layer locking status
     positionX         Int         @default(0)            // Horizontal position on the canvas
@@ -134,15 +134,15 @@ model Layer {
 }
 
 model Animation {
-  animationId    String           @id @default(uuid())
-  projectId      String           // Link to the parent project
-  name           String?          // Optional name for the animation
-  frames         Json             // Array of frame sequences (ordered frame IDs or data)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  animationId      String    @id @default(uuid())
+  projectId        String                             // Link to the parent project
+  name             String?                            // Optional name for the animation
+  frames           Json                               // Array of frame sequences (ordered frame IDs or data)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  project        Project          @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
-  settings       AnimationSetting @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
+  project          Project          @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  settings         AnimationSetting @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
 }
 
 // Settings for project animations, such as frame rate and loop options

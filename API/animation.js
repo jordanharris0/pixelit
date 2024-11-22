@@ -12,7 +12,7 @@ router.post(
   isLoggedIn,
   async (req, res, next) => {
     const { projectId } = req.params;
-    const { frameRate, loop, exportFormat } = req.body;
+    const { frameRate, loop, exportFormat, isPublic, isDraft } = req.body;
     const userId = req.user.userId;
 
     try {
@@ -36,7 +36,13 @@ router.post(
 
       //create animation settings
       const animationSetting = await prisma.animationSetting.create({
-        data: { projectId, frameRate, loop, exportFormat },
+        data: { projectId, frameRate, loop, exportFormat, isPublic, isDraft },
+      });
+
+      //update the project to set hasAnimation to true
+      await prisma.project.update({
+        where: { projectId },
+        data: { hasAnimation: true },
       });
 
       res.status(201).json(animationSetting);
@@ -53,7 +59,7 @@ router.patch(
   isLoggedIn,
   async (req, res, next) => {
     const { projectId } = req.params;
-    const { frameRate, loop, exportFormat } = req.body;
+    const { frameRate, loop, exportFormat, isPublic, isDraft } = req.body;
     const userId = req.user.userId;
 
     try {
@@ -69,10 +75,13 @@ router.patch(
       //update the animation settings
       const updatedAnimationSetting = await prisma.animationSetting.update({
         where: { projectId },
-        data: { frameRate, loop, exportFormat },
+        data: { frameRate, loop, exportFormat, isPublic, isDraft },
       });
 
-      res.json(updatedAnimationSetting);
+      res.sendStatus(201).json({
+        message: "Animation settings saved.",
+        updatedAnimationSetting,
+      });
     } catch (error) {
       console.error("Error updating animation settings:", error.message);
       next(error);

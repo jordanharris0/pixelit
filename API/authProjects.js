@@ -19,6 +19,7 @@ router.get("/projects", isLoggedIn, async (req, res, next) => {
             layers: true,
           },
         },
+        animations: true,
       },
     });
 
@@ -43,6 +44,7 @@ router.get("/projects/:projectId", isLoggedIn, async (req, res, next) => {
             layers: true,
           },
         },
+        animations: true,
       },
     });
 
