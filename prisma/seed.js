@@ -104,8 +104,27 @@ const bcrypt = require("bcrypt");
 //     }),
 //   ]);
 
-//   // Seed other data (Likes, Comments, Bookmarks, etc.)
-//   // ... (same as the previous seed example)
+//   // Seed Animations
+//   const animation1 = await prisma.animation.create({
+//     data: {
+//       projectId: project1.projectId,
+//       name: "Sunset Animation",
+//       frames: JSON.stringify([1, 2]),
+//     },
+//   });
+
+//   // Seed Animation Settings
+//   await prisma.animationSetting.create({
+//     data: {
+//       animationId: animation1.animationId, // Animation ID seeded earlier
+//       projectId: project1.projectId, // Link to the existing project
+//       frameRate: 15,
+//       loop: true,
+//       exportFormat: "GIF",
+//       isPublic: true,
+//       isDraft: false,
+//     },
+//   });
 
 //   // Seed Likes
 //   await Promise.all([
@@ -167,75 +186,12 @@ const bcrypt = require("bcrypt");
 //     },
 //   });
 
-//   // Seed Reports
-//   await prisma.report.create({
-//     data: {
-//       reason: "Inappropriate content",
-//       user: {
-//         connect: { userId: user1.userId },
-//       },
-//       project: {
-//         connect: { projectId: project2.projectId },
-//       },
-//     },
-//   });
-
-//   // Seed Template Layers
-//   await prisma.templateLayer.create({
-//     data: {
-//       projectId: project1.projectId,
-//       imageUrl: "https://example.com/template1.png",
-//       opacity: 0.5,
-//       positionX: 10,
-//       positionY: 20,
-//       scale: 1.2,
-//     },
-//   });
-
-//   // Seed Animation Settings
-//   await prisma.animationSetting.create({
-//     data: {
-//       projectId: project1.projectId,
-//       frameRate: 15,
-//       loop: true,
-//       exportFormat: "GIF",
-//     },
-//   });
-
-//   // Seed Collaboration
-//   await prisma.collaboration.create({
-//     data: {
-//       projectId: project1.projectId,
-//       userId: user2.userId,
-//       role: "EDITOR",
-//     },
-//   });
-
-//   // Seed Activity Logs
-//   await prisma.activityLog.create({
-//     data: {
-//       userId: admin.userId,
-//       actionType: "DELETE_PROJECT",
-//       description: "Deleted a project due to inappropriate content.",
-//     },
-//   });
-
-//   // Seed Project Versions
-//   await prisma.version.create({
-//     data: {
-//       projectId: project1.projectId,
-//       pixels: JSON.stringify([
-//         { x: 1, y: 1, color: "#FF5733" },
-//         { x: 2, y: 2, color: "#33FF57" },
-//       ]),
-//     },
-//   });
-
 //   console.log("Seeding complete!");
 // }
 
-//seed into exsisting users
 async function main() {
+  // Seed into existing users
+
   // Hash password for users
   const passwordHash = await bcrypt.hash("testing", 10);
 
@@ -254,6 +210,7 @@ async function main() {
         description: "Pixel art of a serene mountain view.",
         tags: ["mountain", "view"],
         isPublic: true,
+        hasAnimation: true, // For testing animation integration
         userId: user1.userId,
       },
     }),
@@ -263,6 +220,7 @@ async function main() {
         description: "A colorful representation of a distant galaxy.",
         tags: ["space", "galaxy"],
         isPublic: false,
+        hasAnimation: false,
         userId: user2.userId,
       },
     }),
@@ -295,6 +253,28 @@ async function main() {
       },
     }),
   ]);
+
+  // Seed Animation Data
+  const animation1 = await prisma.animation.create({
+    data: {
+      projectId: project3.projectId,
+      name: "Mountain Animation",
+      frames: JSON.stringify([1, 2]), // Frame references
+    },
+  });
+
+  // Seed Animation Settings
+  await prisma.animationSetting.create({
+    data: {
+      animationId: animation1.animationId,
+      projectId: project3.projectId,
+      frameRate: 15,
+      loop: true,
+      exportFormat: "GIF",
+      isPublic: true,
+      isDraft: false,
+    },
+  });
 
   // Seed additional Likes, Comments, Bookmarks, etc., for existing users
   await Promise.all([

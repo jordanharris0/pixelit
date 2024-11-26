@@ -104,4 +104,60 @@ router.get("/users/:userId/downloads", isLoggedIn, async (req, res, next) => {
   }
 });
 
+//export an animation -- NEEDS TESTING
+router.post(
+  "/projects/:projectId/animations/:animationId/export",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId, animationId } = req.params;
+    const { exportFormat } = req.body; // e.g., "GIF", "spriteSheet", "MP4"
+    const userId = req.user.userId;
+
+    try {
+      //check if the project and animation exist
+      const animation = await prisma.animation.findUnique({
+        where: { animationId },
+        include: { project: true },
+      });
+
+      if (!animation || animation.projectId !== projectId) {
+        return res.status(404).json({ message: "Animation not found." });
+      }
+
+      //authorization: only public animations or user's own
+      if (!animation.project.isPublic && animation.project.userId !== userId) {
+        return res
+          .status(403)
+          .json({ message: "Unauthorized to export this animation." });
+      }
+
+      //process export logic (e.g., generate sprite sheet or GIF)
+      const exportedFile = await processExport(animation, exportFormat);
+
+      //increment download count
+      await prisma.project.update({
+        where: { projectId },
+        data: { downloadCount: { increment: 1 } },
+      });
+
+      await prisma.user.update({
+        where: { userId: animation.project.userId },
+        data: { downloadCount: { increment: 1 } },
+      });
+
+      //track the download
+      await prisma.download.create({
+        data: { userId, projectId },
+      });
+
+      res.status(200).json({
+        message: `Animation exported successfully as ${exportFormat}.`,
+        fileUrl: exportedFile.url,
+      });
+    } catch (error) {
+      console.error("Error exporting animation:", error.message);
+      next(error);
+    }
+  }
+);
 //<-------------------- ^^^^^^ -------------------->

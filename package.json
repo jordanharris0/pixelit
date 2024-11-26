@@ -18,6 +18,9 @@
     "nodemon": "^3.1.7",
     "prisma": "^5.22.0"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "scripts": {
     "start": "node server.js",
     "start:dev": "nodemon server.js",

@@ -76,8 +76,7 @@ model Project {
     downloads         Download[]                    // Log each download event for this project
     reports           Report[]                      // Reports for NSFW content
     notifications     Notification[]                // User interaction notifications
-
-    animations       Animation[]
+    animations        Animation[]                   // Project Animations
 }
 
 // Template layer system for project tracing guides
@@ -134,15 +133,20 @@ model Layer {
 }
 
 model Animation {
-  animationId      String    @id @default(uuid())
-  projectId        String                             // Link to the parent project
-  name             String?                            // Optional name for the animation
-  frames           Json                               // Array of frame sequences (ordered frame IDs or data)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  animationId      String           @id @default(uuid())
+  projectId        String                                    // Link to the parent project
+  name             String?                                   // Optional name for the animation
+  frames           Json                                      // Array of frame sequences (ordered frame IDs or data)
+  isPublic         Boolean          @default(false)          // Visibility setting
+  isDraft          Boolean          @default(true)           // Draft indicator
+  hasSpriteSheet   Boolean          @default(false)          // Indicates if a sprite sheet exists
+  hasGif           Boolean          @default(false)          // Indicates if a GIF exists
+  hasMp4           Boolean          @default(false)          // Indicates if an MP4 exists
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   project          Project          @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
-  settings         AnimationSetting @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
+  settings         AnimationSetting?
 }
 
 // Settings for project animations, such as frame rate and loop options
@@ -152,6 +156,7 @@ model AnimationSetting {
     frameRate      Int       @default(12)            // Frames per second for playback
     loop           Boolean   @default(true)          // Should animation loop by default?
     exportFormat   String?                           // Preferred format for export (e.g., GIF, MP4)
+    spriteSheetOptions Json?                         // Configurations for sprite sheet export (e.g., grid size)
     isPublic       Boolean   @default(false)         // Controls public visibility
     isDraft        Boolean   @default(true)          // Controls whether the animation is in draft mode
     createdAt      DateTime  @default(now())
@@ -159,8 +164,7 @@ model AnimationSetting {
 
     // Relationship
     project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
-
-    animations Animation[]
+    animation      Animation @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
 }
 
 // Stores past versions of a project for undo/redo functionality
