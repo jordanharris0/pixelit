@@ -4,6 +4,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
 
+const { PutObjectCommand } = require("@aws-sdk/client-s3");
+const s3 = require("./s3Client");
+
 //is admin function
 const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === "ADMIN") {
@@ -173,6 +176,76 @@ function mergePixels(existingPixels, newPixels) {
   return JSON.stringify(Array.from(existingPixelMap.values()));
 }
 
+//process a single frame export
+async function processFrameDownload(frame, exportFormat = "PNG") {
+  const fileName = `${frame.canvasId}_frame.${exportFormat.toLowerCase()}`;
+  const bucketName = "pixelit-templates-pfp"; // Replace with your bucket name
+
+  //generate the file content (e.g., image buffer)
+  const fileContent = Buffer.from(
+    `Simulated content for frame ${frame.frameNumber} in ${exportFormat}`
+  );
+
+  //define S3 upload parameters
+  const params = {
+    Bucket: bucketName,
+    Key: `exports/${fileName}`, //store under 'exports/' folder
+    Body: fileContent,
+    ContentType:
+      exportFormat === "PNG" ? "image/png" : "application/octet-stream",
+  };
+
+  try {
+    await s3.send(new PutObjectCommand(params));
+    const url = `https://${bucketName}.s3.amazonaws.com/exports/${fileName}`;
+    return {
+      url,
+      message: `Frame exported successfully as ${exportFormat}.`,
+    };
+  } catch (error) {
+    console.error("Error uploading frame to S3:", error);
+    throw new Error("Failed to process frame download.");
+  }
+}
+
+//process an animation export
+async function processExport(animation, exportFormat) {
+  const fileName = `${
+    animation.animationId
+  }_animation.${exportFormat.toLowerCase()}`;
+  const bucketName = "pixelit-templates-pfp"; //replace with your bucket name
+
+  //generate the file content (e.g., GIF/MP4 buffer)
+  const fileContent = Buffer.from(
+    `Simulated content for animation ${animation.animationId} in ${exportFormat}`
+  );
+
+  //define S3 upload parameters
+  const params = {
+    Bucket: bucketName,
+    Key: `exports/${fileName}`, //store under 'exports/' folder
+    Body: fileContent,
+    ContentType:
+      exportFormat === "GIF"
+        ? "image/gif"
+        : exportFormat === "MP4"
+        ? "video/mp4"
+        : "application/octet-stream",
+  };
+
+  try {
+    await s3.send(new PutObjectCommand(params));
+    const url = `https://${bucketName}.s3.amazonaws.com/exports/${fileName}`;
+    return {
+      url,
+      message: `Animation exported successfully as ${exportFormat}.`,
+    };
+  } catch (error) {
+    console.error("Error uploading animation to S3:", error);
+    throw new Error("Failed to process animation export.");
+  }
+}
+
 module.exports = {
   createUser,
   authenticate,
@@ -180,4 +253,6 @@ module.exports = {
   isAdmin,
   createNotification,
   mergePixels,
+  processFrameDownload,
+  processExport,
 };

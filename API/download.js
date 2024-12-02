@@ -9,23 +9,19 @@ const prisma = require("../prisma");
 
 //<---------- Handles Download Activity Routes ---------->
 
-//download and track download activity for a project -- WORKS
+//download and track download activity for a project -- NEEDS TESTING
 router.post(
   "/projects/:projectId/download",
   isLoggedIn,
   async (req, res, next) => {
     const { projectId } = req.params;
+    const { downloadType, frameNumber, animationId, exportFormat } = req.body; //options for download
     const userId = req.user.userId;
 
     try {
       const project = await prisma.project.findUnique({
         where: { projectId },
-        select: {
-          userId: true,
-          isPublic: true,
-          fileUrl: true, //file URL for the project
-          downloadCount: true,
-        },
+        include: { canvasData: true, animations: true },
       });
 
       if (!project) {
@@ -39,8 +35,45 @@ router.post(
         });
       }
 
+      let downloadContent;
+
+      //handle different download types
+      switch (downloadType) {
+        case "frame": //download by frame
+          const frame = project.canvasData.find(
+            (f) => f.frameNumber === frameNumber
+          );
+          if (!frame) {
+            return res.status(404).json({ message: "Frame not found." });
+          }
+          //process frame download (static image)
+          downloadContent = await processFrameDownload(
+            frame,
+            exportFormat || "PNG"
+          );
+          break;
+        case "animation": //download by animation
+          const animation = project.animations.find(
+            (a) => a.animationId === animationId
+          );
+          if (!animation) {
+            return res.status(404).json({ message: "Animation not found." });
+          }
+          //process animation download in desired format
+          downloadContent = await processExport(
+            animation,
+            exportFormat || "GIF"
+          );
+          break;
+        default: //fallback to full project download
+          downloadContent = project.fileUrl
+            ? { url: project.fileUrl, message: "Full project downloaded." }
+            : { message: "No file URL available for this project." };
+          break;
+      }
+
       //increment download count (project)
-      const updatedProject = await prisma.project.update({
+      await prisma.project.update({
         where: { projectId },
         data: { downloadCount: { increment: 1 } },
       });
@@ -52,9 +85,7 @@ router.post(
       });
 
       //log download event in the Download table
-      const download = await prisma.download.create({
-        data: { userId, projectId },
-      });
+      await prisma.download.create({ data: { userId, projectId } });
 
       //create a notification for the project owner
       await createNotification(
@@ -65,10 +96,8 @@ router.post(
       );
 
       res.status(200).json({
-        message: "Download tracked successfully.",
-        downloadCount: updatedProject.downloadCount,
-        fileUrl: project.fileUrl, //add file URL to response for download initiation
-        download,
+        message: "Download successful.",
+        downloadContent,
       });
     } catch (error) {
       console.error("Error tracking download:", error.message);
@@ -103,61 +132,4 @@ router.get("/users/:userId/downloads", isLoggedIn, async (req, res, next) => {
     next(error);
   }
 });
-
-//export an animation -- NEEDS TESTING
-router.post(
-  "/projects/:projectId/animations/:animationId/export",
-  isLoggedIn,
-  async (req, res, next) => {
-    const { projectId, animationId } = req.params;
-    const { exportFormat } = req.body; // e.g., "GIF", "spriteSheet", "MP4"
-    const userId = req.user.userId;
-
-    try {
-      //check if the project and animation exist
-      const animation = await prisma.animation.findUnique({
-        where: { animationId },
-        include: { project: true },
-      });
-
-      if (!animation || animation.projectId !== projectId) {
-        return res.status(404).json({ message: "Animation not found." });
-      }
-
-      //authorization: only public animations or user's own
-      if (!animation.project.isPublic && animation.project.userId !== userId) {
-        return res
-          .status(403)
-          .json({ message: "Unauthorized to export this animation." });
-      }
-
-      //process export logic (e.g., generate sprite sheet or GIF)
-      const exportedFile = await processExport(animation, exportFormat);
-
-      //increment download count
-      await prisma.project.update({
-        where: { projectId },
-        data: { downloadCount: { increment: 1 } },
-      });
-
-      await prisma.user.update({
-        where: { userId: animation.project.userId },
-        data: { downloadCount: { increment: 1 } },
-      });
-
-      //track the download
-      await prisma.download.create({
-        data: { userId, projectId },
-      });
-
-      res.status(200).json({
-        message: `Animation exported successfully as ${exportFormat}.`,
-        fileUrl: exportedFile.url,
-      });
-    } catch (error) {
-      console.error("Error exporting animation:", error.message);
-      next(error);
-    }
-  }
-);
 //<-------------------- ^^^^^^ -------------------->
