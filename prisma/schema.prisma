@@ -69,7 +69,6 @@ model Project {
     comments          Comment[]                     // Comments on this project
     canvasData        CanvasData[]                  // Frame data for animations
     versions          Version[]                     // Project version history
-    animationSettings AnimationSetting?             // Animation settings, if applicable
     collaborations    Collaboration[]               // List of collaborators on the project
     bookmarks         Bookmark[]                    // Users who bookmarked this project
     templateLayers    TemplateLayer[]               // Template layers associated with this project
@@ -152,7 +151,6 @@ model Animation {
 // Settings for project animations, such as frame rate and loop options
 model AnimationSetting {
     animationId    String    @id @default(uuid())    // Unique identifier for animation settings
-    projectId      String    @unique                 // Project associated with these settings
     frameRate      Int       @default(12)            // Frames per second for playback
     loop           Boolean   @default(true)          // Should animation loop by default?
     exportFormat   String?                           // Preferred format for export (e.g., GIF, MP4)
@@ -163,7 +161,6 @@ model AnimationSetting {
     updatedAt      DateTime  @updatedAt
 
     // Relationship
-    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
     animation      Animation @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
 }
 

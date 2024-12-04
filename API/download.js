@@ -3,6 +3,8 @@ module.exports = router;
 const {
   isLoggedIn,
   createNotification,
+  processFrameDownload,
+  processExport,
 } = require("../controllers/authController");
 
 const prisma = require("../prisma");
