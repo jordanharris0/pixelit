@@ -114,7 +114,7 @@ router.patch(
       //if a new file is uploaded, upload it to S3 and update the URL
       if (file) {
         const s3Params = {
-          Bucket: "pixelit-templates-pfp",
+          Bucket: process.env.AWS_BUCKET_NAME,
           Key: `templates/${Date.now()}_${file.originalname}`,
           Body: file.buffer,
           ContentType: file.mimetype,
@@ -174,7 +174,7 @@ router.delete(
         templateLayer.imageUrl.includes("s3.amazonaws.com")
       ) {
         const s3Params = {
-          Bucket: "pixelit-templates-pfp",
+          Bucket: process.env.AWS_BUCKET_NAME,
           Key: templateLayer.imageUrl.split("/").slice(-2).join("/"), // Extract key from URL
         };
         await s3.send(new DeleteObjectCommand(s3Params));

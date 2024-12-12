@@ -170,7 +170,7 @@ router.patch(
 
         //define S3 upload parameters for the new profile picture
         const s3Params = {
-          Bucket: "pixelit-templates-pfp",
+          Bucket: process.env.AWS_BUCKET_NAME,
           Key: `profile-pictures/${userId}_${Date.now()}_${file.originalname}`,
           Body: file.buffer,
           ContentType: file.mimetype,

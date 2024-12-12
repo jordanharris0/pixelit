@@ -4,6 +4,14 @@ const { isLoggedIn, mergePixels } = require("../controllers/authController");
 
 const prisma = require("../prisma");
 
+const {
+  PutObjectCommand,
+  ListObjectsCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+} = require("@aws-sdk/client-s3");
+const s3 = require("../controllers/s3Client");
+
 //<---------- v Handles Project Routes v ---------->
 
 //get all projects for logged in user -- WORKS
@@ -83,7 +91,7 @@ router.get("/projects/drafts", isLoggedIn, async (req, res, next) => {
   }
 });
 
-//create new project/canvas data for logged in user -- WORKS
+//create new project/canvas data for logged in user -- NEEDS TESTING
 router.post("/projects", isLoggedIn, async (req, res, next) => {
   const { title, description, tags, isPublic, isDraft, width, height, pixels } =
     req.body;
@@ -110,6 +118,27 @@ router.post("/projects", isLoggedIn, async (req, res, next) => {
       include: { canvasData: true }, //include canvas data in the response
     });
 
+    //upload to S3 if project is public
+    if (isPublic) {
+      const s3Params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `projects/${newProject.projectId}/project.json`,
+        Body: JSON.stringify(newProject),
+        ContentType: "application/json",
+      };
+
+      //upload and update fileUrl
+      await s3.send(new PutObjectCommand(s3Params));
+      const fileUrl = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+
+      await prisma.project.update({
+        where: { projectId: newProject.projectId },
+        data: { fileUrl },
+      });
+
+      newProject.fileUrl = fileUrl; //include fileUrl in the response
+    }
+
     res.status(201).json(newProject);
   } catch (error) {
     console.error(
@@ -119,6 +148,53 @@ router.post("/projects", isLoggedIn, async (req, res, next) => {
     next(error);
   }
 });
+
+//manually upload a project to S3 -- WORKS
+router.post(
+  "/projects/:projectId/upload",
+  isLoggedIn,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      const project = await prisma.project.findUnique({
+        where: { projectId },
+        include: { canvasData: true, animations: true },
+      });
+
+      if (!project || project.userId !== userId) {
+        return res
+          .status(403)
+          .json({ message: "Unauthorized to upload this project." });
+      }
+
+      //upload project to S3
+      const s3Params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `projects/${projectId}/project.json`,
+        Body: JSON.stringify(project),
+        ContentType: "application/json",
+      };
+
+      await s3.send(new PutObjectCommand(s3Params));
+      const fileUrl = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+
+      await prisma.project.update({
+        where: { projectId },
+        data: { fileUrl },
+      });
+
+      res.status(200).json({
+        message: "Project uploaded successfully.",
+        fileUrl,
+      });
+    } catch (error) {
+      console.error("Error uploading project:", error.message);
+      next(error);
+    }
+  }
+);
 
 //create a new frame in existing project -- WORKS
 router.post(
@@ -293,6 +369,36 @@ router.patch("/projects/:projectId", isLoggedIn, async (req, res, next) => {
           height: height || project.height, //new height if provided, otherwise keep current
         },
       });
+    }
+
+    //handle S3 upload if project becomes public
+    if (isPublic && !project.isPublic) {
+      try {
+        const s3Params = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: `projects/${projectId}/project.json`, //unique path for the project
+          Body: JSON.stringify(updatedProject), //convert project data to JSON for upload
+          ContentType: "application/json",
+        };
+
+        //upload to S3
+        await s3.send(new PutObjectCommand(s3Params));
+        const fileUrl = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+
+        //update project with the file URL
+        await prisma.project.update({
+          where: { projectId },
+          data: { fileUrl },
+        });
+
+        //include the file URL in the response
+        updatedProject.fileUrl = fileUrl;
+      } catch (s3Error) {
+        console.error("Error uploading project to S3:", s3Error.message);
+        return res.status(500).json({
+          message: "Failed to upload project to cloud storage.",
+        });
+      }
     }
 
     res.json({
@@ -733,7 +839,7 @@ router.post(
   }
 );
 
-//reorder layers -- NEEDS TESTING
+//reorder layers -- WORKS
 router.patch(
   "/projects/:projectId/frames/:frameNumber/layers/reorder/:canvasId",
   isLoggedIn,
@@ -794,7 +900,7 @@ router.patch(
   }
 );
 
-//delete a layer -- NEEDS TESTING
+//delete a layer -- WORKS
 router.delete(
   "/projects/:projectId/frames/:frameNumber/layers/:layerId",
   isLoggedIn,
@@ -826,7 +932,7 @@ router.delete(
   }
 );
 
-//delete entire project -- WORKS
+//delete entire project -- NEEDS TESTING
 router.delete("/projects/:projectId", isLoggedIn, async (req, res, next) => {
   const { projectId } = req.params;
   const userId = req.user.userId;
@@ -843,6 +949,35 @@ router.delete("/projects/:projectId", isLoggedIn, async (req, res, next) => {
       return res
         .status(403)
         .json({ message: "Unauthorized to delete this project." });
+    }
+
+    //remove associated files from S3
+    try {
+      //list objects in the project's S3 folder
+      const projectFolder = `projects/${projectId}/`;
+      const listedObjects = await s3.send(
+        new ListObjectsCommand({
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Prefix: projectFolder,
+        })
+      );
+
+      if (listedObjects.Contents && listedObjects.Contents.length > 0) {
+        //delete all objects in the folder
+        const deleteParams = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Delete: {
+            Objects: listedObjects.Contents.map((object) => ({
+              Key: object.Key,
+            })),
+          },
+        };
+
+        await s3.send(new DeleteObjectsCommand(deleteParams));
+        console.log("S3 objects deleted successfully for project:", projectId);
+      }
+    } catch (s3Error) {
+      console.error("Error deleting project files from S3:", s3Error.message);
     }
 
     await prisma.project.delete({
