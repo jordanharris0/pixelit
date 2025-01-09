@@ -7,7 +7,12 @@ const {
 } = require("../controllers/authController");
 // const cache = require("../middleware/cache");
 
-const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  PutObjectCommand,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+} = require("@aws-sdk/client-s3");
 const s3 = require("../controllers/s3Client");
 
 const multer = require("multer");
@@ -162,7 +167,7 @@ router.patch(
             .join("/");
           await s3.send(
             new DeleteObjectCommand({
-              Bucket: "pixelit-templates-pfp",
+              Bucket: process.env.AWS_BUCKET_NAME,
               Key: oldKey,
             })
           );
@@ -201,13 +206,103 @@ router.patch(
 
 //delete account -- WORKS
 router.delete("/account", isLoggedIn, async (req, res) => {
+  const userId = req.user.userId;
+
   try {
+    //fetch user details
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: {
+        profilePicture: true,
+        projects: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const deleteS3Files = [];
+
+    //delete profile pictures from S3
+    if (user.profilePicture) {
+      const profilePictureKey = user.profilePicture
+        .split("/")
+        .slice(-2)
+        .join("/");
+      deleteS3Files.push(
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: profilePictureKey,
+          })
+        )
+      );
+    }
+
+    //delete projects and associated S3 files
+    for (const project of user.projects) {
+      const projectFolderKey = `projects/${project.projectId}/`;
+      const listCommand = new ListObjectsV2Command({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Prefix: projectFolderKey,
+      });
+
+      const listedObjects = await s3.send(listCommand);
+
+      if (listedObjects.Contents) {
+        for (const object of listedObjects.Contents) {
+          deleteS3Files.push(
+            s3.send(
+              new DeleteObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: object.Key,
+              })
+            )
+          );
+        }
+      }
+    }
+
+    //delete templates from the user
+    for (const project of user.projects) {
+      const templateFolderKey = `templates/${project.projectId}/`;
+      const listedTemplates = await s3.send(
+        new ListObjectsV2Command({
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Prefix: templateFolderKey,
+        })
+      );
+
+      if (listedTemplates.Contents && listedTemplates.Contents.length > 0) {
+        const deleteParams = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Delete: {
+            Objects: [
+              ...listedTemplates.Contents.map((object) => ({
+                Key: object.Key,
+              })),
+              { Key: templateFolderKey }, //explicitly include the folder key
+            ],
+          },
+        };
+
+        await s3.send(new DeleteObjectsCommand(deleteParams));
+        console.log(`Templates for project ${project.projectId} deleted.`);
+      }
+    }
+
+    //wait for all S3 deletions to complete
+    await Promise.all(deleteS3Files);
+
     await prisma.user.delete({
       where: { userId: req.user.userId },
     });
-    res.status(200).json({ message: "Account deleted successfully." });
+    res
+      .status(200)
+      .json({ message: "Account and associated data deleted successfully." });
   } catch (error) {
-    console.error("Error deleting user:", error.message);
+    console.error("Error deleting account and S3 files:", error.message);
     res.status(500).json({ message: "Failed to delete account." });
   }
 });

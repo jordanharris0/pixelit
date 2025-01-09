@@ -44,7 +44,7 @@ router.post(
       //define S3 upload parameters
       const s3Params = {
         Bucket: "pixelit-templates-pfp",
-        Key: `templates/${Date.now()}_${file.originalname}`, //unique key for each upload
+        Key: `templates/${projectId}/${Date.now()}_${file.originalname}`, //unique key for each upload
         Body: file.buffer,
         ContentType: file.mimetype,
       };
@@ -82,7 +82,7 @@ router.patch(
   isLoggedIn,
   upload.single("file"), //allow optional file upload
   async (req, res, next) => {
-    const { layerId } = req.params;
+    const { layerId, projectId } = req.params;
     const {
       opacity,
       isLocked,
@@ -113,9 +113,21 @@ router.patch(
 
       //if a new file is uploaded, upload it to S3 and update the URL
       if (file) {
+        //delete old file from S3
+        if (templateLayer.imageUrl) {
+          const oldKey = templateLayer.imageUrl.split("/").slice(-3).join("/");
+          await s3.send(
+            new DeleteObjectCommand({
+              Bucket: process.env.AWS_BUCKET_NAME,
+              Key: oldKey,
+            })
+          );
+        }
+
+        //upload new file to S3
         const s3Params = {
           Bucket: process.env.AWS_BUCKET_NAME,
-          Key: `templates/${Date.now()}_${file.originalname}`,
+          Key: `templates/${projectId}/${Date.now()}_${file.originalname}`,
           Body: file.buffer,
           ContentType: file.mimetype,
         };
@@ -152,7 +164,7 @@ router.delete(
   "/projects/:projectId/template-layer/:layerId",
   isLoggedIn,
   async (req, res, next) => {
-    const { layerId } = req.params;
+    const { layerId, projectId } = req.params;
     const userId = req.user.userId;
 
     try {
@@ -173,11 +185,16 @@ router.delete(
         templateLayer.imageUrl &&
         templateLayer.imageUrl.includes("s3.amazonaws.com")
       ) {
+        const templateKey = `templates/${projectId}/${templateLayer.imageUrl
+          .split("/")
+          .slice(-1)}`; //extract only the file name, append to projectId folder
+
         const s3Params = {
           Bucket: process.env.AWS_BUCKET_NAME,
-          Key: templateLayer.imageUrl.split("/").slice(-2).join("/"), // Extract key from URL
+          Key: templateKey,
         };
         await s3.send(new DeleteObjectCommand(s3Params));
+        console.log(`Template file deleted from S3: ${templateKey}`);
       }
 
       await prisma.templateLayer.delete({

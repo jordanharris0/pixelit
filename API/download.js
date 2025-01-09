@@ -9,9 +9,12 @@ const {
 
 const prisma = require("../prisma");
 
+const { PutObjectCommand } = require("@aws-sdk/client-s3");
+const s3 = require("../controllers/s3Client");
+
 //<---------- Handles Download Activity Routes ---------->
 
-//download and track download activity for a project -- NEEDS TESTING
+//download and track download activity for a project -- WORKS
 router.post(
   "/projects/:projectId/download",
   isLoggedIn,
@@ -35,6 +38,29 @@ router.post(
         return res.status(403).json({
           message: "You are not authorized to download this project.",
         });
+      }
+
+      //upload to S3 if fileUrl is missing
+      if (!project.fileUrl) {
+        const s3Params = {
+          Bucket: process.env.AWS_BUCKET_NAME, //adjust to your S3 bucket
+          Key: `projects/${projectId}/project.json`, //unique path for the project
+          Body: JSON.stringify(project), //convert project data to JSON for upload
+          ContentType: "application/json",
+        };
+
+        //perform S3 upload
+        await s3.send(new PutObjectCommand(s3Params));
+        const fileUrl = `https://${s3Params.Bucket}.s3.amazonaws.com/${s3Params.Key}`;
+
+        //update project with the file URL
+        await prisma.project.update({
+          where: { projectId },
+          data: { fileUrl },
+        });
+
+        //update the file URL in the project object
+        project.fileUrl = fileUrl;
       }
 
       let downloadContent;
@@ -68,9 +94,10 @@ router.post(
           );
           break;
         default: //fallback to full project download
-          downloadContent = project.fileUrl
-            ? { url: project.fileUrl, message: "Full project downloaded." }
-            : { message: "No file URL available for this project." };
+          downloadContent = {
+            url: project.fileUrl,
+            message: "Full project downloaded.",
+          };
           break;
       }
 

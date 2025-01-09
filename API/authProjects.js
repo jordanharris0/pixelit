@@ -952,39 +952,79 @@ router.delete("/projects/:projectId", isLoggedIn, async (req, res, next) => {
     }
 
     //remove associated files from S3
-    try {
-      //list objects in the project's S3 folder
-      const projectFolder = `projects/${projectId}/`;
-      const listedObjects = await s3.send(
-        new ListObjectsCommand({
-          Bucket: process.env.AWS_BUCKET_NAME,
-          Prefix: projectFolder,
-        })
-      );
+    const deleteProjectFiles = async () => {
+      try {
+        const projectFolder = `projects/${projectId}/`;
+        const listedObjects = await s3.send(
+          new ListObjectsV2Command({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Prefix: projectFolder,
+          })
+        );
 
-      if (listedObjects.Contents && listedObjects.Contents.length > 0) {
-        //delete all objects in the folder
-        const deleteParams = {
-          Bucket: process.env.AWS_BUCKET_NAME,
-          Delete: {
-            Objects: listedObjects.Contents.map((object) => ({
-              Key: object.Key,
-            })),
-          },
-        };
+        if (listedObjects.Contents && listedObjects.Contents.length > 0) {
+          const deleteParams = {
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Delete: {
+              Objects: listedObjects.Contents.map((object) => ({
+                Key: object.Key,
+              })),
+            },
+          };
 
-        await s3.send(new DeleteObjectsCommand(deleteParams));
-        console.log("S3 objects deleted successfully for project:", projectId);
+          await s3.send(new DeleteObjectsCommand(deleteParams));
+          console.log(
+            "S3 objects deleted successfully for project:",
+            projectId
+          );
+        }
+      } catch (error) {
+        console.error("Error deleting project files from S3:", error.message);
       }
-    } catch (s3Error) {
-      console.error("Error deleting project files from S3:", s3Error.message);
-    }
+    };
 
+    //remove associated template files from S3
+    const deleteTemplateFiles = async () => {
+      try {
+        const templateFolder = `templates/${projectId}/`;
+        const listedTemplates = await s3.send(
+          new ListObjectsV2Command({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Prefix: templateFolder,
+          })
+        );
+
+        if (listedTemplates.Contents && listedTemplates.Contents.length > 0) {
+          const deleteParams = {
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Delete: {
+              Objects: listedTemplates.Contents.map((object) => ({
+                Key: object.Key,
+              })),
+            },
+          };
+
+          await s3.send(new DeleteObjectsCommand(deleteParams));
+          console.log(
+            "S3 template objects deleted successfully for project:",
+            projectId
+          );
+        }
+      } catch (error) {
+        console.error("Error deleting template files from S3:", error.message);
+      }
+    };
+
+    await Promise.all([deleteProjectFiles(), deleteTemplateFiles()]);
+
+    //delete the project and related data
     await prisma.project.delete({
       where: { projectId },
     });
 
-    res.status(204).json({ message: "Project successfully deleted." }); //successfully deleted
+    res
+      .status(200)
+      .json({ message: "Project and associated data successfully deleted." }); //successfully deleted
   } catch (error) {
     console.error("Error deleting project:", error.message);
     next(error);
