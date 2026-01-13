@@ -1,0 +1,296 @@
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User accounts with profile information, download and bookmark tracking
+model User {
+    userId                String   @id @default(uuid())  // Unique user identifier
+    firstName             String                         // User's first name
+    lastName              String                         // User's last name
+    username              String   @unique               // Username, must be unique
+    email                 String   @unique               // Email, must be unique
+    password              String                         // Hashed password for security
+    profilePicture        String?                        // Optional profile picture URL
+    bio                   String?                        // Optional user bio
+    downloadCount         Int      @default(0)           // Total downloads across all projects by user
+    bookmarkCount         Int      @default(0)           // Total bookmarks on this user's projects
+    likesCount            Int      @default(0)           // Total likes of a project
+    role                  UserRole @default(USER)        // User role (enum: User || Admin)
+    refreshToken          String?                        //field to store refresh token
+    showBookmarks         Boolean  @default(true)        // Controls visibility of bookmarks
+    showDownloadHistory   Boolean  @default(true)        // Controls visibility of download history
+    notificationsEnabled  Boolean  @default(true)        // Controls notification settings
+    createdAt             DateTime @default(now())       // Account creation date
+    updatedAt             DateTime @updatedAt            // Last update timestamp
+    
+    // Relationships
+    projects              Project[]                       // Projects created by user
+    bookmarks             Bookmark[]                      // Projects bookmarked by user
+    likes                 Like[]                          // Likes given by user
+    comments              Comment[]                       // Comments made by user
+    collaborations        Collaboration[]                 // Projects user collaborates on
+    downloads             Download[]                      // Track each download by this user
+    reports               Report[]                        // Reports for NSFW content
+    notifications         Notification[]                  // User interaction notifications
+    activityLog           ActivityLog[]                   //Activity log entries
+}
+
+// Represents a piece of pixel art or animation
+model Project {
+    projectId       String    @id @default(uuid())  // Unique project identifier
+    userId          String                          // ID of the user who created the project
+    title           String                          // Project title
+    description     String?                         // Optional project description
+    tags            String[]                        // Array of tags for keywords
+    isPublic        Boolean   @default(true)        // Visibility setting, default is public
+    isDraft         Boolean   @default(false)       // Draft setting for projects
+    hasAnimation    Boolean   @default(false)       // Animation indicater
+    downloadCount   Int       @default(0)           // Total downloads of this project
+    fileUrl         String?                         // URL to the file in external storage
+    bookmarkCount   Int       @default(0)           // Total bookmarks of a project
+    likesCount      Int       @default(0)           // Total likes of a project
+    isLicensed      Boolean   @default(false)       // Phase 2: Indicates if project requires license for high-res download
+    watermarkStatus Boolean   @default(true)        // Phase 1: Controls watermark on downloads
+    resolution      String    @default("low")       // Phase 1: Default resolution for public downloads
+    createdAt       DateTime  @default(now())       // Project creation date
+    updatedAt       DateTime  @updatedAt            // Last update timestamp
+    
+    // Relationships
+    user              User    @relation(fields: [userId], references: [userId], onDelete: Cascade)  // Link to creator user
+    likes             Like[]                        // Likes received on this project
+    comments          Comment[]                     // Comments on this project
+    canvasData        CanvasData[]                  // Frame data for animations
+    versions          Version[]                     // Project version history
+    collaborations    Collaboration[]               // List of collaborators on the project
+    bookmarks         Bookmark[]                    // Users who bookmarked this project
+    templateLayers    TemplateLayer[]               // Template layers associated with this project
+    downloads         Download[]                    // Log each download event for this project
+    reports           Report[]                      // Reports for NSFW content
+    notifications     Notification[]                // User interaction notifications
+    animations        Animation[]                   // Project Animations
+}
+
+// Template layer system for project tracing guides
+model TemplateLayer {
+    templateLayerId   String      @id @default(uuid())   // Unique identifier for template layer
+    projectId         String                             // Project associated with this template layer
+    imageUrl          String                             // URL of the template image
+    opacity           Float       @default(0.5)          // Opacity of the template (0-1 range)
+    isLocked          Boolean     @default(false)        // Layer locking status
+    positionX         Int         @default(0)            // Horizontal position on the canvas
+    positionY         Int         @default(0)            // Vertical position on the canvas
+    scale             Float       @default(1.0)          // Scale factor for the template image
+    flipHorizontal    Boolean     @default(false)        // Horizontal flip status
+    flipVertical      Boolean     @default(false)        // Vertical flip status
+    rotation          Int         @default(0)            // Rotation angle in degrees
+    predefinedImages  String[]    @default([])           // Array of stored imageUrls
+
+    // Relationship
+    project           Project     @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+}
+
+// Stores pixel data for each frame in a project animation
+model CanvasData {
+    canvasId       String    @id @default(uuid())    // Unique identifier for canvas frame
+    projectId      String                            // Project associated with this frame
+    frameNumber    Int                               // Frame order in animation
+    width          Int                               // Canvas width in pixels
+    height         Int                               // Canvas height in pixels
+    pixels         Json                              // JSON storing pixel colors and positions
+    createdAt      DateTime  @default(now())         // Creation date for this frame
+    updatedAt      DateTime  @updatedAt              // Last update timestamp
+
+    // Relationship
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+    layers         Layer[]
+
+    @@unique([projectId, frameNumber])               // Compound unique constraint 
+}
+
+//Layer model for individual frames
+model Layer {
+  layerId          String    @id @default(uuid())
+  canvasId         String
+  name             String?                           // Optional layer name
+  pixels           Json
+  opacity          Float     @default(1.0)           // Opacity of the layer
+  isVisible        Boolean   @default(true)          // Visibility toggle
+  zIndex           Int                               // Order of the layer
+  isLocked         Boolean   @default(false)         // Lock the layer to prevent accidental edits
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  canvas     CanvasData @relation(fields: [canvasId], references: [canvasId], onDelete: Cascade)
+}
+
+model Animation {
+  animationId      String           @id @default(uuid())
+  projectId        String                                    // Link to the parent project
+  name             String?                                   // Optional name for the animation
+  frames           Json                                      // Array of frame sequences (ordered frame IDs or data)
+  isPublic         Boolean          @default(false)          // Visibility setting
+  isDraft          Boolean          @default(true)           // Draft indicator
+  hasSpriteSheet   Boolean          @default(false)          // Indicates if a sprite sheet exists
+  hasGif           Boolean          @default(false)          // Indicates if a GIF exists
+  hasMp4           Boolean          @default(false)          // Indicates if an MP4 exists
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  project          Project          @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  settings         AnimationSetting?
+}
+
+// Settings for project animations, such as frame rate and loop options
+model AnimationSetting {
+    animationId    String    @id @default(uuid())    // Unique identifier for animation settings
+    frameRate      Int       @default(12)            // Frames per second for playback
+    loop           Boolean   @default(true)          // Should animation loop by default?
+    exportFormat   String?                           // Preferred format for export (e.g., GIF, MP4)
+    spriteSheetOptions Json?                         // Configurations for sprite sheet export (e.g., grid size)
+    isPublic       Boolean   @default(false)         // Controls public visibility
+    isDraft        Boolean   @default(true)          // Controls whether the animation is in draft mode
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+
+    // Relationship
+    animation      Animation @relation(fields: [animationId], references: [animationId], onDelete: Cascade)
+}
+
+// Stores past versions of a project for undo/redo functionality
+model Version {
+    versionId      String    @id @default(uuid())    // Unique identifier for version entry
+    projectId      String                            // Project associated with this version
+    createdAt      DateTime  @default(now())         // When this version was created
+    pixels         Json                              // JSON snapshot of the canvas state at this version
+
+    // Relationship
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+}
+
+
+// Tracks collaboration on projects with roles and permissions
+model Collaboration {
+    collaborationId String    @id @default(uuid())    // Unique identifier for collaboration entry
+    projectId       String                            // Project associated with this collaboration
+    userId          String                            // Collaborator user ID
+    role            CollaborationRole @default(VIEWER)// Role of collaborator (enum: Owner, Editor, Viewer)
+    permissions     Json?                             // Custom permissions for collaborator
+
+    // Relationships
+    project         Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)  // Link to project
+    user            User      @relation(fields: [userId], references: [userId], onDelete: Cascade)        // Link to user
+
+    @@unique([userId, projectId])                      //Compound unique constraint
+}
+
+model Download {
+  downloadId     String   @id @default(uuid())        // Unique identifier for each download event
+  userId         String                               // ID of the user who downloaded
+  projectId      String                               // ID of the downloaded project
+  downloadedAt   DateTime @default(now())             // Timestamp of download event
+
+  // Relationships
+  user           User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  project        Project  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+}
+
+// Allows users to like projects
+model Like {
+    likeId         String    @id @default(uuid())    // Unique identifier for like entry
+    userId         String                            // User who liked the project
+    projectId      String                            // Project that received the like
+    createdAt      DateTime  @default(now())         // Date the like was created
+
+    // Relationships
+    user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+
+    @@unique([userId, projectId], name: "userId_projectId_unique") // Compound unique constraint
+}
+
+// Allows users to leave comments on projects
+model Comment {
+    commentId      String    @id @default(uuid())    // Unique identifier for comment
+    userId         String                            // User who commented
+    projectId      String                            // Project that received the comment
+    content        String                            // Comment text
+    createdAt      DateTime  @default(now())         // Date comment was created
+
+    // Relationships
+    user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+    reports        Report[]                          // Reported Comments
+}
+
+// Allows users to bookmark projects they like, similar to a "save" feature
+model Bookmark {
+    bookmarkId     String    @id @default(uuid())    // Unique identifier for bookmark entry
+    userId         String                            // User who bookmarked the project
+    projectId      String                            // Project that was bookmarked
+    createdAt      DateTime  @default(now())         // Date bookmark was created
+
+    // Relationships
+    user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)         // Link to user
+    project        Project   @relation(fields: [projectId], references: [projectId], onDelete: Cascade)    // Link to project
+
+    @@unique([projectId, userId], name: "userId_projectId_unique")  // Compound unique constraint
+}
+
+// Allows user to be notified when someone interacts with their project
+model Notification {
+  notificationId String   @id @default(uuid())
+  userId         String                                // User to be notified
+  projectId      String?                               // Project associated with the notification, if applicable
+  type           String                                // Type of notification (e.g., "LIKE", "COMMENT", "DOWNLOAD")
+  message        String                                // Notification message
+  isRead         Boolean   @default(false)             // Read status of the notification
+  createdAt      DateTime  @default(now())             // Timestamp of notification creation
+
+  user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  project        Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+}
+
+// Allows user to report inappropriate or problematic projects
+model Report {
+  reportId    String   @id @default(uuid())
+  userId      String                                 // The user who reported the content
+  projectId   String?                                // The reported project
+  commentId   String?                                // The reported comment
+  reason      String                                 // Reason for reporting
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  comment     Comment?  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
+}
+
+// Allows admin to monitor user activity
+model ActivityLog {
+  activityLogId String   @id @default(uuid())
+  userId        String?                               // User who performed the action, optional if system action
+  actionType    String                                // Type of action (e.g., "DELETE_PROJECT", "UPDATE_ROLE")
+  description   String                                // Description of the action
+  createdAt     DateTime @default(now())              // When the action occurred
+
+  user          User?    @relation(fields: [userId], references: [userId], onDelete: SetNull)
+}
+
+// Enum for user roles
+enum UserRole {
+    USER
+    ADMIN
+}
+
+enum CollaborationRole {
+    OWNER
+    EDITOR
+    VIEWER
+}
