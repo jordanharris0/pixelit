@@ -5,31 +5,41 @@
 
 ## 🎯 MVP Scope
 
-### ✅ INCLUDE (Must-Have)
+### ✅ INCLUDE (Must-Have Frontend)
 - User authentication (register/login)
-- Pixel canvas editor (16x16, 32x32, 64x64)
-- Drawing tools (pencil, eraser, fill, eyedropper)
+- Pixel canvas editor (16x16, 32x32, 64x64, 100x100)
+- Drawing tools (pencil, eraser, fill, eyedropper, line, shapes)
+- Mirror mode (X/Y symmetry)
 - Color picker + palette
 - Undo/Redo
+- Layer system (add, delete, opacity, visibility)
 - Frame-by-frame animation
 - Timeline UI
-- Animation playback
+- Animation playback with onion skinning
 - Export as PNG/GIF/Sprite Sheet
 - Save/Load projects
 - Public gallery (view only)
 - Basic search/filter
+- Preview panel & navigation mini-map
 
-### ❌ EXCLUDE (Post-MVP)
-- Collaboration features
-- Likes/Comments/Bookmarks
-- Notifications
-- Template layers
-- Reporting system
-- Admin panel
-- User profiles (beyond auth)
-- Version history
-- Download tracking
+### ⏸️ BACKEND READY - NO UI YET (Post-MVP v2.0)
+**Note:** All these features have complete backend APIs, just no frontend UI in MVP
+- ✅ **Likes/Comments** - Routes exist in `likeComment.js`
+- ✅ **Bookmarks** - Routes exist in `bookmarks.js`
+- ✅ **Collaboration** - Routes exist in `collaboration.js`
+- ✅ **Notifications** - Routes exist in `notifications.js`
+- ✅ **Reports/Admin** - Routes exist in `admin.js`
+- ✅ **Download tracking** - Routes exist in `download.js`
+- ✅ **Template layers** - Routes exist in `templates.js`
+- ✅ **User analytics** - Routes exist in `authAccount.js`
+
+### ❌ NOT BUILT YET (Future)
+- Version history UI
 - MP4 export
+- Advanced filters/effects
+- Selection tools (lasso, magic wand)
+- Custom brushes
+- Blend modes
 
 ---
 
@@ -64,26 +74,33 @@
 ### **Phase 2: Core Canvas Editor** (Week 3-5) - *HOME MACHINE*
 **Status:** 🔴 Not Started
 
-#### Week 3: Basic Canvas
+#### Week 3: Basic Canvas (Pixilart-Style)
 **Priority:** CRITICAL - Everything depends on this
 
 - [ ] Set up frontend (React + Vite if not on separate branch)
-- [ ] Install canvas library (Konva.js recommended)
+- [ ] Install canvas library (Konva.js recommended for pixel control)
 - [ ] Implement pixel grid renderer
-  - [ ] Support 16x16, 32x32, 64x64 canvas sizes
-  - [ ] Pixel grid with borders
+  - [ ] Support 16x16, 32x32, 64x64, 100x100 canvas sizes
+  - [ ] Pixel grid with visible borders
   - [ ] Render saved pixel data
+  - [ ] Show mouse coordinates (X:0 Y:0)
+  - [ ] Display canvas size info
 - [ ] Basic mouse interaction
   - [ ] Click to draw single pixel
   - [ ] Mouse down + drag to draw continuously
-  - [ ] Color selection
-- [ ] Color picker component
-  - [ ] RGB/HSV picker
-  - [ ] Recent colors palette
-  - [ ] Predefined color palettes
-- [ ] Toolbar UI
+  - [ ] **Pixel Perfect mode** (smooth lines between pixels)
+  - [ ] **Right-click erase** functionality
+  - [ ] Track mouse position in real-time
+- [ ] Color picker component (RIGHT SIDEBAR)
+  - [ ] Current color display (large swatch)
+  - [ ] RGB/HSV color picker
+  - [ ] Color palette (predefined colors)
+  - [ ] Recent colors history
+  - [ ] Hex color input
+- [ ] Toolbar UI (LEFT SIDEBAR)
   - [ ] Pencil tool (default)
   - [ ] Eraser tool
+  - [ ] **Pixel size selector** (1-10px brush)
   - [ ] Clear canvas button
 
 **API Needs:**
@@ -91,17 +108,35 @@
 - `PUT /api/projects/:id` - Update project
 - `GET /api/projects/:id` - Get project data
 
-#### Week 4: Essential Tools
-- [ ] Fill bucket tool (flood fill algorithm)
-- [ ] Eyedropper tool (color picker from canvas)
-- [ ] Pan canvas (spacebar + drag)
-- [ ] Zoom controls (zoom in/out/reset)
-- [ ] Grid toggle (show/hide pixel borders)
-- [ ] Undo/Redo implementation
+#### Week 4: Essential Tools (Pixilart Features)
+- [ ] **Fill bucket tool** (flood fill algorithm)
+- [ ] **Eyedropper tool** (color picker from canvas)
+- [ ] **Line tool** (draw straight lines)
+- [ ] **Shape tools** (rectangle, circle, filled/outlined)
+- [ ] **Mirror mode** (Mirror X and Mirror Y toggles)
+  - [ ] Draw symmetrically on X-axis
+  - [ ] Draw symmetrically on Y-axis
+  - [ ] Both mirrors simultaneously
+- [ ] **Pan canvas** (hand tool or spacebar + drag)
+- [ ] **Zoom controls** 
+  - [ ] Zoom slider (10% - 1600%)
+  - [ ] Zoom in/out buttons
+  - [ ] Fit to screen
+  - [ ] 100% reset
+- [ ] **Grid toggle** (show/hide pixel borders)
+- [ ] **Undo/Redo implementation**
   - [ ] History stack (limit to 50 states)
-  - [ ] Keyboard shortcuts (Ctrl+Z, Ctrl+Y)
-- [ ] Canvas resize/scale options
-- [ ] Background transparency toggle
+  - [ ] Keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z)
+  - [ ] Visual indicators for undo/redo availability
+- [ ] **Canvas resize/scale options**
+- [ ] **Layer system** (RIGHT SIDEBAR)
+  - [ ] Add/delete layers
+  - [ ] Layer visibility toggle
+  - [ ] Layer opacity slider (0-100%)
+  - [ ] Reorder layers
+  - [ ] Rename layers
+- [ ] **Preview panel** (mini canvas showing full view)
+- [ ] **Navigation mini-map** (shows viewport position on zoomed canvas)
 
 **Testing:**
 - [ ] Can draw complex pixel art
@@ -136,24 +171,27 @@
 ### **Phase 3: Animation System** (Week 6-7) - *HOME MACHINE*
 **Status:** 🔴 Not Started
 
-#### Week 6: Frame Management
-- [ ] Frame timeline UI (horizontal strip at bottom)
+#### Week 6: Frame Management (Pixilart GIF Frames)
+- [ ] Frame timeline UI (horizontal strip at bottom - **Pixilart style**)
 - [ ] Frame operations
-  - [ ] Add new frame (blank or duplicate current)
+  - [ ] **Add Frame** button
+  - [ ] **Copy Frame** button (duplicate current frame)
   - [ ] Delete frame
-  - [ ] Duplicate frame
   - [ ] Reorder frames (drag-and-drop)
 - [ ] Frame navigation
   - [ ] Previous/Next frame buttons
-  - [ ] Click frame to jump to it
-  - [ ] Keyboard shortcuts (PageUp/PageDown)
+  - [ ] Click frame thumbnail to jump to it
+  - [ ] Keyboard shortcuts (PageUp/PageDown or Arrow keys)
 - [ ] Frame thumbnails
-  - [ ] Render canvas to small preview
+  - [ ] Render canvas to small preview (64x64 thumbnails)
   - [ ] Show frame number
-  - [ ] Highlight active frame
+  - [ ] Highlight active frame with border
+  - [ ] Frame duration indicator (for GIF)
+- [ ] **Tile Mode** toggle (see pattern repeat)
 - [ ] Canvas state per frame
   - [ ] Store separate pixel data per frame
-  - [ ] Smoothly switch between frames
+  - [ ] Store layers per frame
+  - [ ] Smoothly switch between frames without lag
 
 **Data Structure:**
 ```json
@@ -361,25 +399,34 @@
 
 ## 🎨 UI/UX Considerations
 
-### Canvas Editor Layout
+### Canvas Editor Layout (Pixilart-Style)
 ```
-┌─────────────────────────────────────────────────┐
-│ Header: [Logo] [Project Title] [Save] [Export] │
-├──────────┬──────────────────────┬───────────────┤
-│ Toolbar  │                      │ Color Picker  │
-│          │                      │               │
-│ [Pencil] │                      │  [Current]    │
-│ [Eraser] │     CANVAS GRID      │  [Palette]    │
-│ [Fill]   │                      │  [Recent]     │
-│ [Picker] │                      │               │
-│ [Pan]    │                      │               │
-│          │                      │               │
-│ [Undo]   │                      │ Settings      │
-│ [Redo]   │                      │ - Grid: [x]   │
-│          │                      │ - Size: 32x32 │
-├──────────┴──────────────────────┴───────────────┤
-│ Timeline: [+] [Frame 1] [Frame 2] [▶ Play]     │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ Header: [Logo] [Save] [File] [Settings]            [User Menu]  │
+├────────┬──────────────────────────────────────┬──────────────────┤
+│ TOOLS  │                                      │ LAYERS           │
+│        │                                      │ - Layer 1 (100%) │
+│ Pencil │          CANVAS GRID                 │ [+] Add Layer    │
+│ Eraser │     (with pixel coordinates)         │                  │
+│ Fill   │                                      │ PREVIEW          │
+│ Picker │     Mouse: X:0 Y:0                   │ [Mini canvas]    │
+│ Line   │     Canvas: 100x100                  │                  │
+│ Shape  │                                      │ TOOL OPTIONS     │
+│        │                                      │ - Pixel Size: 1  │
+│ Mirror │                                      │ - Stabilizer: 0  │
+│ [X][Y] │                                      │ - Pixel Perfect  │
+│        │                                      │                  │
+│ [Undo] │                                      │ COLORS           │
+│ [Redo] │                                      │ ████ Current     │
+│        │                                      │ Palette: [....] │
+│ Grid ☑ │                                      │                  │
+│ Zoom   │                                      │ NAVIGATION       │
+│ [━━━]  │                                      │ [Mini map]       │
+│        │                                      │ Zoom: 100%       │
+├────────┴──────────────────────────────────────┴──────────────────┤
+│ GIF FRAMES: [+] [Copy] [▶ Play] [Tile Mode]                     │
+│ Frames: [1] [2] [3] [4] ...                                      │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Design Principles
@@ -433,38 +480,86 @@
 
 ## 📦 Post-MVP Features (v2.0)
 
-After you land a job, consider adding:
+**All of these have complete backend APIs already built!** Just add frontend UI when ready.
 
-1. **Collaboration** (your unique feature!)
-   - Real-time multi-user editing
-   - WebSocket integration
+### Social Features (Backend: ✅ Ready)
+1. **Likes & Comments** - `likeComment.js`
+   - Like button on projects
+   - Comment section
+   - Comment editing/deletion
+   - Like counter display
+
+2. **Bookmarks** - `bookmarks.js`
+   - Bookmark button
+   - "My Bookmarks" page
+   - Bookmark counter
+
+3. **Notifications** - `notifications.js`
+   - Notification bell icon
+   - Notification panel
+   - Mark as read
+   - Real-time updates (add Socket.io)
+
+### Community Features (Backend: ✅ Ready)
+4. **Collaboration** - `collaboration.js`
+   - Invite collaborators
+   - Role management (Owner/Editor/Viewer)
+   - Real-time editing (add WebSockets)
    - Presence indicators
    - Permission system
 
-2. **Social Features**
-   - Likes, comments, bookmarks
-   - User profiles
+5. **User Profiles** - `authAccount.js` & `users.js`
+   - Profile pages
+   - User activity feed
    - Follow system
-   - Activity feed
+   - User analytics/stats
 
-3. **Advanced Tools**
-   - Layers system
-   - Template layers with transforms
-   - Selection tools
-   - Copy/paste between frames
-   - Symmetry mode
+### Moderation (Backend: ✅ Ready)
+6. **Reporting System** - `admin.js`
+   - Report button
+   - Report reasons
+   - Admin review panel
 
-4. **Premium Features**
-   - Higher resolution exports
-   - MP4 video export
-   - Private projects
-   - More storage
+7. **Admin Panel** - `admin.js`
+   - Activity logs
+   - User management
+   - Content moderation
+   - Analytics dashboard
 
-5. **Community**
-   - Featured projects
-   - Contests
-   - Tutorials
-   - Asset marketplace
+### Advanced Creative Tools (Backend: ✅ Ready)
+8. **Template Layers** - `templates.js`
+   - Import reference images
+   - Opacity, position, scale controls
+   - Rotation and flip
+   - Layer locking
+   - Predefined template library
+
+9. **Download Tracking** - `download.js`
+   - Download history
+   - Download analytics
+   - Most downloaded projects
+
+### Future Features (Not Built Yet)
+10. **Premium Features**
+    - Higher resolution exports
+    - MP4 video export
+    - Private projects
+    - More storage
+    - No watermarks
+
+11. **Advanced Tools**
+    - Layers system (already have basic)
+    - Selection tools
+    - Copy/paste between frames
+    - Symmetry mode
+    - Custom brushes
+    - Filters and effects
+
+12. **Community**
+    - Featured projects
+    - Contests
+    - Tutorials
+    - Asset marketplace
 
 ---
 
