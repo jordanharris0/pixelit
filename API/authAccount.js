@@ -19,7 +19,7 @@ const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
 const prisma = require("../prisma");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
