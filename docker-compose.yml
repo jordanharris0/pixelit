@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database Service
   postgres:
@@ -56,6 +54,7 @@ services:
 
     ports:
       - "12000:12000"  # Host:Container - access from localhost:12000
+      - "5555:5555"    # For Prisma Studio access
     depends_on:
       postgres:
         condition: service_healthy

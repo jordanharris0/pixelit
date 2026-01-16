@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies with npm ci (cleaner install than npm install)
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy Prisma schema and migrations
 COPY prisma ./prisma/
@@ -25,6 +25,8 @@ WORKDIR /app
 # Copy node_modules and Prisma from builder stage
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+
 
 # Copy application code
 COPY . .

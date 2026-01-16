@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-const bcrypt = require("bcrypt");
+const prisma = require("./index");
+const bcrypt = require("bcryptjs");
 
 // <---- seed new data v ---->
 async function main() {
@@ -116,13 +116,15 @@ async function main() {
   // Seed Animation Settings
   await prisma.animationSetting.create({
     data: {
-      animationId: animation1.animationId, // Animation ID seeded earlier
-      projectId: project1.projectId, // Link to the existing project
       frameRate: 15,
       loop: true,
       exportFormat: "GIF",
       isPublic: true,
       isDraft: false,
+
+      animation: {
+        connect: { animationId: animation1.animationId },
+      },
     },
   });
 
