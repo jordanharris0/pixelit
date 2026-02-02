@@ -1,5 +1,5 @@
 const prisma = require("../prisma");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -44,7 +44,7 @@ const isLoggedIn = async (req, res, next) => {
 //create a new user
 const createUser = async (req, res, next) => {
   try {
-    const { firstName, lastName, username, email, password } = req.body;
+    const { firstName, lastName, username, email, password, role } = req.body;
 
     if (!firstName || !lastName || !username || !email || !password) {
       return res.status(400).json({ message: "All fields are required." });
@@ -59,6 +59,7 @@ const createUser = async (req, res, next) => {
         username: username,
         email: email,
         password: hashedPassword,
+        role: role || "USER", // Default to USER if not provided
       },
     });
 
@@ -166,7 +167,7 @@ async function createNotification(userId, projectId, type, message) {
 //merge canvas data function for drafts
 function mergePixels(existingPixels, newPixels) {
   const existingPixelMap = new Map(
-    JSON.parse(existingPixels).map((pixel) => [`${pixel.x},${pixel.y}`, pixel])
+    JSON.parse(existingPixels).map((pixel) => [`${pixel.x},${pixel.y}`, pixel]),
   );
 
   for (const newPixel of newPixels) {
@@ -183,7 +184,7 @@ async function processFrameDownload(frame, exportFormat = "PNG") {
 
   //generate the file content (e.g., image buffer)
   const fileContent = Buffer.from(
-    `Simulated content for frame ${frame.frameNumber} in ${exportFormat}`
+    `Simulated content for frame ${frame.frameNumber} in ${exportFormat}`,
   );
 
   //define S3 upload parameters
@@ -217,7 +218,7 @@ async function processExport(animation, exportFormat) {
 
   //generate the file content (e.g., GIF/MP4 buffer)
   const fileContent = Buffer.from(
-    `Simulated content for animation ${animation.animationId} in ${exportFormat}`
+    `Simulated content for animation ${animation.animationId} in ${exportFormat}`,
   );
 
   //define S3 upload parameters
@@ -229,8 +230,8 @@ async function processExport(animation, exportFormat) {
       exportFormat === "GIF"
         ? "image/gif"
         : exportFormat === "MP4"
-        ? "video/mp4"
-        : "application/octet-stream",
+          ? "video/mp4"
+          : "application/octet-stream",
   };
 
   try {
