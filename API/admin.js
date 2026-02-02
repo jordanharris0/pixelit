@@ -4,6 +4,37 @@ const { isLoggedIn, isAdmin } = require("../controllers/authController");
 
 const prisma = require("../prisma");
 
+// Promote user to admin (only existing admins can do this) -- WORKS
+router.patch(
+  "/:userId/promote",
+  isLoggedIn,
+  isAdmin,
+  async (req, res, next) => {
+    const { userId } = req.params;
+
+    try {
+      // Check if user exists first
+      const user = await prisma.user.findUnique({
+        where: { userId },
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { userId },
+        data: { role: "ADMIN" },
+      });
+
+      res.json({ message: "User promoted to admin", user: updatedUser });
+    } catch (error) {
+      console.error("Error promoting user:", error.message);
+      next(error);
+    }
+  },
+);
+
 //get all reports for review -- WORKS
 router.get("/reports", isLoggedIn, isAdmin, async (req, res, next) => {
   try {
@@ -46,7 +77,7 @@ router.delete(
       console.error("Error deleting project:", error.message);
       next(error);
     }
-  }
+  },
 );
 
 //get all reported comments -- WORKS
@@ -97,7 +128,7 @@ router.delete(
       console.error("Error deleting comment:", error.message);
       next(error);
     }
-  }
+  },
 );
 
 //Activity log for admin -- WORKS
